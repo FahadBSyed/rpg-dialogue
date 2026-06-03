@@ -60,7 +60,12 @@ function CheckEntry({ entry }: { entry: LogEntry }) {
         {tag}
       </span>
       <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.06em', color, cursor: 'default' }}>
-        {entry.speaker} — {CHECK_LABELS[outcome]}
+        {entry.speaker} — {CHECK_LABELS[displayOutcome]}
+        {entry.appliedBonus && (
+          <span style={{ color: '#6a9eb0', fontSize: '0.72rem', marginLeft: '10px' }}>
+            [{entry.appliedBonus.description}]
+          </span>
+        )}
       </span>
       {hovered && (
         <div style={{
@@ -183,14 +188,18 @@ export function DialogueOverlay() {
   const chooseOption = useGameStore((s) => s.chooseOption)
   const triggerPassiveCheck = useGameStore((s) => s.triggerPassiveCheck)
 
+  const pendingPassiveResult = useGameStore((s) => s.pendingPassiveResult)
+  const injectedInterjections = useGameStore((s) => s.injectedInterjections)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const isUserScrolling = useRef(false)
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentNode = dialogueNodes[currentNodeId]
-  const visibleInterjections = currentNode.interjections.slice(0, currentInterjectionIndex)
-  const allInterjectionsSeen = currentInterjectionIndex >= currentNode.interjections.length
-  const nextInterjection = currentNode.interjections[currentInterjectionIndex]
+  const effectiveInterjections = [...injectedInterjections, ...currentNode.interjections]
+  const visibleInterjections = effectiveInterjections.slice(0, currentInterjectionIndex)
+  const allInterjectionsSeen = currentInterjectionIndex >= effectiveInterjections.length
+  const nextInterjection = effectiveInterjections[currentInterjectionIndex]
   const activeSpeaker = visibleInterjections.length > 0
     ? visibleInterjections[visibleInterjections.length - 1].speaker
     : null
@@ -211,7 +220,8 @@ export function DialogueOverlay() {
     prevNodeId.current = currentNodeId
 
     if (currentNode.passiveCheck) {
-      triggerPassiveCheck(currentNode.passiveCheck.skillKey, currentNodeId)
+      const { skillKey, successInterjection, successBonus } = currentNode.passiveCheck
+      triggerPassiveCheck(skillKey, currentNodeId, successInterjection, successBonus)
     }
   }, [currentNodeId])
 
@@ -275,6 +285,9 @@ export function DialogueOverlay() {
             entry={{ type: 'narrative', speaker: 'NARRATOR', text: currentNode.narrative }}
             muted={false}
           />
+
+          {/* Passive check result — appears after narrator text */}
+          {pendingPassiveResult && <LogLine entry={pendingPassiveResult} muted={false} />}
 
           {/* Interjections revealed so far this node */}
           {visibleInterjections.map((inj, i) => (

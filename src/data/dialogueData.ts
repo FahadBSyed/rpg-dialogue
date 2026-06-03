@@ -1,4 +1,4 @@
-import type { SkillKey } from '../store/gameStore'
+import type { SkillKey, BonusType } from '../store/gameStore'
 
 export interface DialogueChoice {
   text: string
@@ -11,10 +11,16 @@ export interface Interjection {
   text: string
 }
 
+export interface PassiveCheckDef {
+  skillKey: SkillKey
+  successInterjection?: Interjection
+  successBonus?: { type: BonusType; skillKey?: SkillKey; sourceDescription: string }
+}
+
 export interface DialogueNode {
   id: string
   narrative: string
-  passiveCheck?: { skillKey: SkillKey }
+  passiveCheck?: PassiveCheckDef
   interjections: Interjection[]
   choices: DialogueChoice[]
 }
@@ -22,7 +28,18 @@ export interface DialogueNode {
 export const dialogueNodes: Record<string, DialogueNode> = {
   start: {
     id: 'start',
-    passiveCheck: { skillKey: 'dangerSense' },
+    passiveCheck: {
+      skillKey: 'dangerSense',
+      successInterjection: {
+        speaker: 'DANGER SENSE',
+        text: 'Eight feet. You know this because something in you measured it without being asked. The left side of the far ledge is more solid than the right — there\'s a stress fracture on the right edge, invisible but present. Land left. You will make this.',
+      },
+      successBonus: {
+        type: 'size_step_up',
+        skillKey: 'endurance',
+        sourceDescription: 'Danger Sense read the gap',
+      },
+    },
     narrative:
       'The passage ends at a chasm. No warning — just floor, and then not. The gap is maybe eight feet across. Maybe ten. The torch doesn\'t reach the bottom. Something moves in the air coming up from it, a cold that isn\'t quite wind.',
     interjections: [

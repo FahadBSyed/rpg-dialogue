@@ -35,6 +35,15 @@ export type GameMode = 'exploration' | 'dialogue'
 
 export type CheckOutcome = 'passed' | 'passed_stressed' | 'failed'
 
+export type BonusType = 'size_step_up' | 'ignore_stress' | 'unlock_choice'
+
+export interface ActiveBonus {
+  id: string
+  type: BonusType
+  skillKey?: SkillKey
+  sourceDescription: string
+}
+
 export interface LogEntry {
   type: 'narrative' | 'choice' | 'interjection' | 'check'
   speaker: string
@@ -43,6 +52,7 @@ export interface LogEntry {
   checkRolls?: number[]
   checkDiceSize?: DiceSize
   passive?: boolean
+  appliedBonus?: { type: BonusType; description: string }
 }
 
 export type SkillKey = keyof Skills
@@ -62,16 +72,29 @@ interface GameState {
   dialogueLog: LogEntry[]
   flashingSkill: SkillKey | null
   resolvedPassiveNodes: Set<string>
+  pendingPassiveResult: LogEntry | null
+  injectedInterjections: { speaker: string; text: string }[]
+  pendingBonuses: ActiveBonus[]
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
   chooseOption: (choiceIndex: number) => void
-  triggerPassiveCheck: (skillKey: SkillKey, nodeId: string) => void
+  triggerPassiveCheck: (skillKey: SkillKey, nodeId: string, successInterjection?: { speaker: string; text: string }, successBonus?: Omit<ActiveBonus, 'id'>) => void
 }
 
 function rollDice(pool: number, size: number): number[] {
   return Array.from({ length: pool }, () => Math.floor(Math.random() * size) + 1)
 }
+
+const DICE_SIZES: DiceSize[] = ['d4', 'd6', 'd8', 'd10', 'd12']
+
+function stepUpSize(size: DiceSize): DiceSize {
+  const i = DICE_SIZES.indexOf(size)
+  return i < DICE_SIZES.length - 1 ? DICE_SIZES[i + 1] : size
+}
+
+let bonusIdCounter = 0
+function newBonusId() { return `bonus_${++bonusIdCounter}` }
 
 export const useGameStore = create<GameState>()((set, get) => ({
   gameMode: 'dialogue',
@@ -175,6 +198,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
   dialogueLog: [],
   flashingSkill: null,
   resolvedPassiveNodes: new Set(),
+  pendingPassiveResult: null,
+  injectedInterjections: [],
+  pendingBonuses: [],
 
   finalizeCharacter: (selections) =>
     set((state) => {
@@ -200,8 +226,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const node = dialogueNodes[state.currentNodeId]
     const choice = node.choices[choiceIndex]
 
+    // Flush passive result and injected interjections into history
+    const passiveEntry = state.pendingPassiveResult ? [state.pendingPassiveResult] : []
+    const injectedLog: LogEntry[] = state.injectedInterjections.map((i) => ({
+      type: 'interjection' as const,
+      speaker: i.speaker,
+      text: i.text,
+    }))
+
     const baseLog: LogEntry[] = [
       { type: 'narrative', speaker: 'NARRATOR', text: node.narrative },
+      ...passiveEntry,
+      ...injectedLog,
       ...node.interjections.map((i) => ({
         type: 'interjection' as const,
         speaker: i.speaker,
@@ -211,14 +247,42 @@ export const useGameStore = create<GameState>()((set, get) => ({
     ]
 
     if (!choice.check) {
-      set({ currentNodeId: choice.nextNodeId, currentInterjectionIndex: 0, dialogueLog: [...state.dialogueLog, ...baseLog] })
+      set({
+        currentNodeId: choice.nextNodeId,
+        currentInterjectionIndex: 0,
+        pendingPassiveResult: null,
+        injectedInterjections: [],
+        dialogueLog: [...state.dialogueLog, ...baseLog],
+      })
       return
     }
 
     const { skillKey, failNodeId } = choice.check
     const skill = state.skills[skillKey]
-    const diceSize = parseInt(skill.size.slice(1))
-    const rolls = rollDice(skill.pool, diceSize)
+
+    // Check for an applicable pending bonus
+    const bonusIdx = state.pendingBonuses.findIndex(
+      (b) => (b.type === 'size_step_up' || b.type === 'ignore_stress') && b.skillKey === skillKey
+    )
+    const bonus = bonusIdx >= 0 ? state.pendingBonuses[bonusIdx] : null
+
+    let effectiveSize = skill.size
+    let effectivePool = skill.pool
+    let appliedBonus: LogEntry['appliedBonus'] | undefined
+
+    if (bonus) {
+      if (bonus.type === 'size_step_up') {
+        const stepped = stepUpSize(skill.size)
+        appliedBonus = { type: bonus.type, description: `${skill.size} → ${stepped} (${bonus.sourceDescription})` }
+        effectiveSize = stepped
+      } else if (bonus.type === 'ignore_stress') {
+        appliedBonus = { type: bonus.type, description: `stress ignored (${bonus.sourceDescription})` }
+        effectivePool = 1
+      }
+    }
+
+    const diceSize = parseInt(effectiveSize.slice(1))
+    const rolls = rollDice(effectivePool, diceSize)
 
     const hasFailed = rolls.some((r) => r === 1)
     const hasOdd = !hasFailed && rolls.some((r) => r % 2 !== 0)
@@ -248,26 +312,35 @@ export const useGameStore = create<GameState>()((set, get) => ({
       text: '',
       checkOutcome: outcome,
       checkRolls: rolls,
-      checkDiceSize: skill.size,
+      checkDiceSize: effectiveSize,
+      appliedBonus,
     }
+
+    const remainingBonuses = bonus
+      ? state.pendingBonuses.filter((_, i) => i !== bonusIdx)
+      : state.pendingBonuses
 
     set({
       currentNodeId: nextNodeId,
       currentInterjectionIndex: 0,
       skills: updatedSkills,
       flashingSkill,
+      pendingPassiveResult: null,
+      injectedInterjections: [],
+      pendingBonuses: remainingBonuses,
       dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
     })
   },
 
-  triggerPassiveCheck: (skillKey, nodeId) => {
+  triggerPassiveCheck: (skillKey, nodeId, successInterjection, successBonus) => {
     const state = get()
     if (state.resolvedPassiveNodes.has(nodeId)) return
 
     const skill = state.skills[skillKey]
     const diceSize = parseInt(skill.size.slice(1))
     const rolls = rollDice(skill.pool, diceSize)
-    const outcome: CheckOutcome = rolls.some((r) => r === 1) ? 'failed' : 'passed'
+    const passed = !rolls.some((r) => r === 1)
+    const outcome: CheckOutcome = passed ? 'passed' : 'failed'
 
     const entry: LogEntry = {
       type: 'check',
@@ -282,9 +355,19 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const resolved = new Set(state.resolvedPassiveNodes)
     resolved.add(nodeId)
 
+    const newInjected = passed && successInterjection
+      ? [successInterjection]
+      : []
+
+    const newBonuses = passed && successBonus
+      ? [...state.pendingBonuses, { ...successBonus, id: newBonusId() }]
+      : state.pendingBonuses
+
     set({
       resolvedPassiveNodes: resolved,
-      dialogueLog: [...state.dialogueLog, entry],
+      pendingPassiveResult: entry,
+      injectedInterjections: newInjected,
+      pendingBonuses: newBonuses,
     })
   },
 }))
