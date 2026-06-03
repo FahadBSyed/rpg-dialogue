@@ -1,10 +1,13 @@
 import { create } from 'zustand'
 import { dialogueNodes } from '../data/dialogueData'
 
+export type DiceSize = 'd4' | 'd6' | 'd8' | 'd10' | 'd12'
+
 export interface Skill {
   name: string
   attribute: string
-  level: number
+  size: DiceSize
+  pool: number
   description: string
 }
 
@@ -36,12 +39,22 @@ export interface LogEntry {
   text: string
 }
 
+export type SkillKey = keyof Skills
+
+export interface CharacterSelections {
+  d6: [SkillKey, SkillKey]
+  d8: [SkillKey, SkillKey]
+  d10: SkillKey
+}
+
 interface GameState {
   gameMode: GameMode
   skills: Skills
+  characterCreated: boolean
   currentNodeId: string
   currentInterjectionIndex: number
   dialogueLog: LogEntry[]
+  finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
   chooseOption: (choiceIndex: number) => void
@@ -55,19 +68,19 @@ export const useGameStore = create<GameState>()((set) => ({
     endurance: {
       name: 'Endurance',
       attribute: 'FLESH',
-      level: 1,
+      size: 'd4', pool: 2,
       description: "The body's refusal to quit — slow, stubborn, almost bovine.",
     },
     scarring: {
       name: 'Scarring',
       attribute: 'FLESH',
-      level: 1,
+      size: 'd4', pool: 2,
       description: 'Every wound remembers the thing that made it.',
     },
     hunger: {
       name: 'Hunger',
       attribute: 'FLESH',
-      level: 1,
+      size: 'd4', pool: 2,
       description:
         'Recognizes compulsion and appetite in all their forms — including your own.',
     },
@@ -76,25 +89,25 @@ export const useGameStore = create<GameState>()((set) => ({
     dungeonLore: {
       name: 'Dungeon Lore',
       attribute: 'WIT',
-      level: 1,
+      size: 'd4', pool: 2,
       description: 'Catalogues monsters, traps, and architecture obsessively.',
     },
     appraisal: {
       name: 'Appraisal',
       attribute: 'WIT',
-      level: 1,
+      size: 'd4', pool: 2,
       description: 'Everything has a price. Everything can be assessed.',
     },
     wayfinding: {
       name: 'Wayfinding',
       attribute: 'WIT',
-      level: 1,
+      size: 'd4', pool: 2,
       description: 'Reads rooms and tunnels like text.',
     },
     scavenging: {
       name: 'Scavenging',
       attribute: 'WIT',
-      level: 1,
+      size: 'd4', pool: 2,
       description: 'Sees potential where others see waste.',
     },
 
@@ -102,20 +115,20 @@ export const useGameStore = create<GameState>()((set) => ({
     reputation: {
       name: 'Reputation',
       attribute: 'STATION',
-      level: 1,
+      size: 'd4', pool: 2,
       description: 'Knows exactly what people say about you, and why.',
     },
     deception: {
       name: 'Deception',
       attribute: 'STATION',
-      level: 1,
+      size: 'd4', pool: 2,
       description:
         'The social weapons of the powerless — misdirection, playing small.',
     },
     spite: {
       name: 'Spite',
       attribute: 'STATION',
-      level: 1,
+      size: 'd4', pool: 2,
       description:
         'The chip on the shoulder as a fuel source. Dangerous when left unattended.',
     },
@@ -124,28 +137,41 @@ export const useGameStore = create<GameState>()((set) => ({
     dangerSense: {
       name: 'Danger Sense',
       attribute: 'INSTINCT',
-      level: 1,
+      size: 'd4', pool: 2,
       description:
         "Wordless and urgent. Doesn't explain itself — just insists.",
     },
     superstition: {
       name: 'Superstition',
       attribute: 'INSTINCT',
-      level: 1,
+      size: 'd4', pool: 2,
       description:
         'Knows the old delver rituals and folk wisdom. Irrational but right.',
     },
     theDeep: {
       name: 'The Deep',
       attribute: 'INSTINCT',
-      level: 1,
+      size: 'd4', pool: 2,
       description: "Slow, vast, barely verbal. Knows things it shouldn't.",
     },
   },
 
+  characterCreated: false,
   currentNodeId: 'start',
   currentInterjectionIndex: 0,
   dialogueLog: [],
+
+  finalizeCharacter: (selections) =>
+    set((state) => {
+      const updatedSkills = { ...state.skills }
+      const bump = (key: SkillKey, size: DiceSize) => {
+        updatedSkills[key] = { ...updatedSkills[key], size }
+      }
+      selections.d6.forEach((k) => bump(k, 'd6'))
+      selections.d8.forEach((k) => bump(k, 'd8'))
+      bump(selections.d10, 'd10')
+      return { skills: updatedSkills, characterCreated: true }
+    }),
 
   setMode: (mode) => set({ gameMode: mode }),
 

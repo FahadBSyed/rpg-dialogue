@@ -27,7 +27,7 @@ export function SkillPanel() {
             return (
               <div key={key} style={styles.skillRow}>
                 <span style={styles.skillName}>{skill.name}</span>
-                <span style={styles.skillLevel}>{skill.level}</span>
+                <span style={styles.skillLevel}>{skill.pool}{skill.size}</span>
               </div>
             )
           })}

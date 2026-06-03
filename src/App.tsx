@@ -1,10 +1,12 @@
 import { PhaserGame } from './game/PhaserGame'
 import { DialogueOverlay } from './components/DialogueOverlay'
 import { SkillPanel } from './components/SkillPanel'
+import { CharacterCreation } from './components/CharacterCreation'
 
 function App() {
   return (
     <div style={styles.root}>
+      <CharacterCreation />
       <div style={styles.sidebar}>
         <SkillPanel />
       </div>
