@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGameStore, LogEntry } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
-import { playScribble, playSkillChime, playCheckPass, playCheckFail, playCheckStress } from '../audio/soundManager'
+import { playScribble, playSkillChime, playCheckPass, playCheckFail } from '../audio/soundManager'
 
 // Colour the speaker tag by attribute / role
 const SPEAKER_COLORS: Record<string, string> = {
@@ -241,11 +241,12 @@ export function DialogueOverlay() {
   useEffect(() => {
     if (dialogueLog.length > prevLogLength.current) {
       const newEntries = dialogueLog.slice(prevLogLength.current)
-      const checkEntry = newEntries.find((e) => e.type === 'check')
+      // Active-check sound is played by the dice roller at its reveal instant
+      // (synced with the number pop and flash). Here we only handle passives.
+      const checkEntry = newEntries.find((e) => e.type === 'check' && e.passive)
       if (checkEntry) {
         if (checkEntry.checkOutcome === 'failed') playCheckFail()
-        else if (checkEntry.checkOutcome === 'passed_stressed' && !checkEntry.passive) playCheckStress()
-        else if (checkEntry.checkOutcome === 'passed' || (checkEntry.checkOutcome === 'passed_stressed' && checkEntry.passive)) playCheckPass()
+        else playCheckPass()
       }
     }
     prevLogLength.current = dialogueLog.length

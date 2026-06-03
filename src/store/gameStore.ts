@@ -89,6 +89,7 @@ interface GameState {
   pendingRoll: PendingRoll | null
   pendingCommit: Partial<GameState> | null
   pendingFlashSkill: SkillKey | null
+  resultFlash: { outcome: CheckOutcome; id: number } | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
@@ -97,6 +98,7 @@ interface GameState {
   setDebugForce: (outcome: CheckOutcome | null) => void
   gotoNode: (nodeId: string) => void
   commitRoll: () => void
+  fireResultFlash: (outcome: CheckOutcome) => void
 }
 
 function rollDice(pool: number, size: number): number[] {
@@ -244,6 +246,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
   pendingRoll: null,
   pendingCommit: null,
   pendingFlashSkill: null,
+  resultFlash: null,
+
+  fireResultFlash: (outcome) =>
+    set((s) => ({ resultFlash: { outcome, id: (s.resultFlash?.id ?? 0) + 1 } })),
 
   setDebugForce: (outcome) => set({ debugForceOutcome: outcome }),
 

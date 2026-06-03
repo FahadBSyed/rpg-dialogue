@@ -10,23 +10,18 @@ const FLASH_COLORS: Record<CheckOutcome, string> = {
 }
 
 export function ResultFlash() {
-  const dialogueLog = useGameStore((s) => s.dialogueLog)
+  // Fired by the dice roller at the synchronized reveal instant, so the flash
+  // lands together with the number pop and the outcome sound.
+  const signal = useGameStore((s) => s.resultFlash)
   const [flash, setFlash] = useState<{ color: string; id: number } | null>(null)
-  const prevLen = useRef(0)
-  const idRef = useRef(0)
+  const lastId = useRef(0)
 
   useEffect(() => {
-    if (dialogueLog.length > prevLen.current) {
-      const fresh = dialogueLog.slice(prevLen.current)
-      // Flash for the active (player-triggered) check only — passive results
-      // shouldn't paint the screen on every room entry.
-      const active = [...fresh].reverse().find((e) => e.type === 'check' && !e.passive)
-      if (active?.checkOutcome) {
-        setFlash({ color: FLASH_COLORS[active.checkOutcome], id: ++idRef.current })
-      }
+    if (signal && signal.id !== lastId.current) {
+      lastId.current = signal.id
+      setFlash({ color: FLASH_COLORS[signal.outcome], id: signal.id })
     }
-    prevLen.current = dialogueLog.length
-  }, [dialogueLog])
+  }, [signal])
 
   if (!flash) return null
 

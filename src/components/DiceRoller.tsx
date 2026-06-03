@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useGameStore } from '../store/gameStore'
 import type { DiceSize } from '../store/gameStore'
+import { playCheckPass, playCheckFail, playCheckStress } from '../audio/soundManager'
 
 // Colour a die's value label by what it means mechanically.
 function valueColor(v: number): string {
@@ -81,19 +82,32 @@ interface Die {
 export function DiceRoller() {
   const pendingRoll = useGameStore((s) => s.pendingRoll)
   const commitRoll = useGameStore((s) => s.commitRoll)
+  const fireResultFlash = useGameStore((s) => s.fireResultFlash)
   const containerRef = useRef<HTMLDivElement>(null)
   const skipRef = useRef(false)
 
   useEffect(() => {
     if (!pendingRoll || !containerRef.current) return
-    const { rolls, diceSize } = pendingRoll
+    const { rolls, diceSize, outcome } = pendingRoll
     const container = containerRef.current
     skipRef.current = false
+
     let committed = false
     const commitOnce = () => {
       if (committed) return
       committed = true
       commitRoll()
+    }
+
+    // The synchronized reveal: numbers pop, sound plays, flash fires — together.
+    let revealed = false
+    const revealOnce = () => {
+      if (revealed) return
+      revealed = true
+      if (outcome === 'failed') playCheckFail()
+      else if (outcome === 'passed_stressed') playCheckStress()
+      else playCheckPass()
+      fireResultFlash(outcome)
     }
 
     const w = container.clientWidth
@@ -152,9 +166,8 @@ export function DiceRoller() {
     })
 
     const G = 26
-    const SETTLE = 1.0      // seconds of tumble
-    const REVEAL = 1.5      // labels fully shown by here
-    const DONE = 2.0        // commit
+    const SETTLE = 1.0      // tumble duration; reveal fires here
+    const DONE = 1.95       // commit (hold ~0.95s on the result so it reads)
     let last = performance.now()
     let elapsed = 0
     let raf = 0
@@ -168,9 +181,13 @@ export function DiceRoller() {
       elapsed += dt
 
       if (skipRef.current) {
+        revealOnce()
         commitOnce()
         return
       }
+
+      // At the settle point, reveal everything at once.
+      if (elapsed >= SETTLE) revealOnce()
 
       const settling = elapsed < SETTLE
       dice.forEach((d) => {
@@ -193,11 +210,11 @@ export function DiceRoller() {
           d.angVel.multiplyScalar(0.8)
         }
 
-        // label floats above the die and fades in during the reveal window
+        // label floats above the die; pops in at the synchronized reveal
         d.label.position.set(d.mesh.position.x, d.mesh.position.y + DIE_RADIUS + 0.55, d.mesh.position.z)
-        const target = elapsed > SETTLE ? Math.min((elapsed - SETTLE) / (REVEAL - SETTLE), 1) : 0
+        const target = revealed ? 1 : 0
         const m = d.label.material as THREE.SpriteMaterial
-        m.opacity += (target - m.opacity) * 0.25
+        m.opacity += (target - m.opacity) * 0.4
       })
 
       renderer.render(scene, camera)
