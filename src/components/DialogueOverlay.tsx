@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useGameStore, LogEntry, ActiveBonus, Skill } from '../store/gameStore'
+import { useGameStore, LogEntry, ActiveBonus, ActivePenalty, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
 import { playScribble, playSkillChime, playCheckPass } from '../audio/soundManager'
 
@@ -47,11 +47,18 @@ const BONUS_TYPE_LABELS: Record<string, string> = {
   ignore_stress: 'Ignore stress',
 }
 
-function CheckAnnotation({ checkName, color, skill, bonuses }: {
+const PENALTY_TYPE_LABELS: Record<string, string> = {
+  size_step_down: 'Die step down',
+  add_stress_die: 'Stress die',
+  lock_choice: 'Option locked',
+}
+
+function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
   checkName: string
   color: string
   skill: Skill
   bonuses: ActiveBonus[]
+  penalties: ActivePenalty[]
 }) {
   const [hovered, setHovered] = useState(false)
 
@@ -95,6 +102,17 @@ function CheckAnnotation({ checkName, color, skill, bonuses }: {
               </span>
             </div>
           ))}
+          {/* Penalties */}
+          {penalties.map((p) => (
+            <div key={p.id} style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#9a4a3a' }}>
+                − {PENALTY_TYPE_LABELS[p.type] ?? p.type}
+              </span>
+              <span style={{ fontFamily: "'Georgia', serif", fontSize: '0.7rem', color: '#6a3a2a', marginLeft: '10px' }}>
+                {p.sourceDescription}
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </span>
@@ -123,6 +141,11 @@ function CheckEntry({ entry }: { entry: LogEntry }) {
         {entry.appliedBonus && (
           <span style={{ color: '#6a9eb0', fontSize: '0.72rem', marginLeft: '10px' }}>
             [{entry.appliedBonus.description}]
+          </span>
+        )}
+        {entry.appliedPenalty && (
+          <span style={{ color: '#9a4a3a', fontSize: '0.72rem', marginLeft: '10px' }}>
+            [{entry.appliedPenalty.description}]
           </span>
         )}
       </span>
@@ -249,6 +272,7 @@ export function DialogueOverlay() {
   const beatCursor = useGameStore((s) => s.beatCursor)
   const revealedBeats = useGameStore((s) => s.revealedBeats)
   const pendingBonuses = useGameStore((s) => s.pendingBonuses)
+  const pendingPenalties = useGameStore((s) => s.pendingPenalties)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const isUserScrolling = useRef(false)
@@ -371,10 +395,14 @@ export function DialogueOverlay() {
               currentNode.choices
                 .map((choice, i) => ({ choice, i }))
                 .filter(({ choice }) =>
-                  !choice.requiresUnlock ||
-                  pendingBonuses.some(
-                    (b) => b.type === 'unlock_choice' && b.unlockKey === choice.requiresUnlock
-                  )
+                  (!choice.requiresUnlock ||
+                    pendingBonuses.some(
+                      (b) => b.type === 'unlock_choice' && b.unlockKey === choice.requiresUnlock
+                    )) &&
+                  (!choice.lockedBy ||
+                    !pendingPenalties.some(
+                      (p) => p.type === 'lock_choice' && p.lockKey === choice.lockedBy
+                    ))
                 )
                 .map(({ choice, i }) => (
                 <button
@@ -399,12 +427,16 @@ export function DialogueOverlay() {
                     const applicableBonuses = pendingBonuses.filter(
                       (b) => (b.type === 'size_step_up' || b.type === 'ignore_stress') && b.skillKey === sk
                     )
+                    const applicablePenalties = pendingPenalties.filter(
+                      (p) => (p.type === 'size_step_down' || p.type === 'add_stress_die') && p.skillKey === sk
+                    )
                     return (
                       <CheckAnnotation
                         checkName={checkName}
                         color={color}
                         skill={skill}
                         bonuses={applicableBonuses}
+                        penalties={applicablePenalties}
                       />
                     )
                   })()}

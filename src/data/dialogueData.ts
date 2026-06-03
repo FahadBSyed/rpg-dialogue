@@ -1,4 +1,4 @@
-import type { SkillKey, BonusType } from '../store/gameStore'
+import type { SkillKey, BonusType, PenaltyType } from '../store/gameStore'
 
 export interface DialogueChoice {
   // Stable handle for referring to this link in conversation, e.g.
@@ -9,6 +9,8 @@ export interface DialogueChoice {
   check?: { skillKey: SkillKey; failNodeId?: string }
   // Only shown when a matching `unlock_choice` bonus is currently pending.
   requiresUnlock?: string
+  // Hidden when a matching `lock_choice` penalty is currently active.
+  lockedBy?: string
 }
 
 export interface Interjection {
@@ -26,6 +28,7 @@ export interface VoiceBeat {
   id?: string
   speaker: string
   text: string
+  penalties?: Array<{ type: PenaltyType; skillKey?: SkillKey; lockKey?: string; sourceDescription: string }>
 }
 
 export interface PassiveBeat {
@@ -133,6 +136,10 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'HUNGER',
         text: 'That smells edible, actually. The spit. To you, I mean. Not just to them. I\'m only mentioning it. I\'ll stop.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'dangerSense', sourceDescription: 'Hunger distracted Fiodor' },
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Hunger distracted Fiodor' },
+        ],
       },
     ],
     choices: [

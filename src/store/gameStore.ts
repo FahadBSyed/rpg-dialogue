@@ -45,6 +45,16 @@ export interface ActiveBonus {
   sourceDescription: string
 }
 
+export type PenaltyType = 'size_step_down' | 'add_stress_die' | 'lock_choice'
+
+export interface ActivePenalty {
+  id: string
+  type: PenaltyType
+  skillKey?: SkillKey
+  lockKey?: string
+  sourceDescription: string
+}
+
 export interface LogEntry {
   type: 'narrative' | 'choice' | 'interjection' | 'check'
   speaker: string
@@ -54,6 +64,7 @@ export interface LogEntry {
   checkDiceSize?: DiceSize
   passive?: boolean
   appliedBonus?: { type: BonusType; description: string }
+  appliedPenalty?: { type: PenaltyType; description: string }
 }
 
 // An in-flight active check whose dice are being animated before the result
@@ -85,6 +96,7 @@ interface GameState {
   dialogueLog: LogEntry[]
   flashingSkill: SkillKey | null
   pendingBonuses: ActiveBonus[]
+  pendingPenalties: ActivePenalty[]
   debugForceOutcome: CheckOutcome | null
   pendingRoll: PendingRoll | null
   pendingCommit: Partial<GameState> | null
@@ -133,8 +145,16 @@ function stepUpSize(size: DiceSize): DiceSize {
   return i < DICE_SIZES.length - 1 ? DICE_SIZES[i + 1] : size
 }
 
+function stepDownSize(size: DiceSize): DiceSize {
+  const i = DICE_SIZES.indexOf(size)
+  return i > 0 ? DICE_SIZES[i - 1] : size
+}
+
 let bonusIdCounter = 0
 function newBonusId() { return `bonus_${++bonusIdCounter}` }
+
+let penaltyIdCounter = 0
+function newPenaltyId() { return `penalty_${++penaltyIdCounter}` }
 
 export const useGameStore = create<GameState>()((set, get) => ({
   gameMode: 'dialogue',
@@ -239,6 +259,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   dialogueLog: [],
   flashingSkill: null,
   pendingBonuses: [],
+  pendingPenalties: [],
   debugForceOutcome: null,
   pendingRoll: null,
   pendingCommit: null,
@@ -266,6 +287,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
         currentNodeId: nodeId,
         beatCursor: 0,
         revealedBeats: [],
+        pendingBonuses: [],
+        pendingPenalties: [],
       }
     }),
 
@@ -293,6 +316,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     let cursor = state.beatCursor
     const revealed = [...state.revealedBeats]
     let bonuses = state.pendingBonuses
+    let penalties = state.pendingPenalties
     const force = state.debugForceOutcome
     let forceConsumed = false
     let revealedSomething = false
@@ -301,6 +325,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
       const beat = beats[cursor]
       if (beat.kind === 'voice') {
         revealed.push({ type: 'interjection', speaker: beat.speaker, text: beat.text })
+        if (beat.penalties?.length) {
+          penalties = [...penalties, ...beat.penalties.map((p) => ({ ...p, id: newPenaltyId() }))]
+        }
         cursor++
         revealedSomething = true
       } else {
@@ -341,6 +368,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       beatCursor: cursor,
       revealedBeats: revealed,
       pendingBonuses: bonuses,
+      pendingPenalties: penalties,
       ...(forceConsumed ? { debugForceOutcome: null } : {}),
     })
   },
@@ -370,6 +398,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         beatCursor: 0,
         revealedBeats: [],
         pendingBonuses: bonusesAfterUnlock,
+        pendingPenalties: state.pendingPenalties,
         dialogueLog: [...state.dialogueLog, ...baseLog],
       })
       return
@@ -397,6 +426,34 @@ export const useGameStore = create<GameState>()((set, get) => ({
         appliedBonus = { type: bonus.type, description: `stress ignored (${bonus.sourceDescription})` }
         effectivePool = 1
       }
+    }
+
+    // Apply and consume applicable penalties
+    let remainingPenalties = state.pendingPenalties
+    let appliedPenalty: LogEntry['appliedPenalty'] | undefined
+
+    const sizeDownIdx = remainingPenalties.findIndex(
+      (p) => p.type === 'size_step_down' && p.skillKey === skillKey
+    )
+    if (sizeDownIdx >= 0) {
+      const p = remainingPenalties[sizeDownIdx]
+      const stepped = stepDownSize(effectiveSize)
+      appliedPenalty = { type: p.type, description: `${effectiveSize} → ${stepped} (${p.sourceDescription})` }
+      effectiveSize = stepped
+      remainingPenalties = remainingPenalties.filter((_, i) => i !== sizeDownIdx)
+    }
+
+    const stressDieIdx = remainingPenalties.findIndex(
+      (p) => p.type === 'add_stress_die' && p.skillKey === skillKey
+    )
+    if (stressDieIdx >= 0) {
+      const p = remainingPenalties[stressDieIdx]
+      const desc = `+1 stress die (${p.sourceDescription})`
+      appliedPenalty = appliedPenalty
+        ? { ...appliedPenalty, description: `${appliedPenalty.description}; ${desc}` }
+        : { type: p.type, description: desc }
+      effectivePool += 1
+      remainingPenalties = remainingPenalties.filter((_, i) => i !== stressDieIdx)
     }
 
     const diceSize = parseInt(effectiveSize.slice(1))
@@ -435,6 +492,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       checkRolls: rolls,
       checkDiceSize: effectiveSize,
       appliedBonus,
+      appliedPenalty,
     }
 
     const remainingBonuses = bonus
@@ -451,6 +509,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       skills: updatedSkills,
       flashingSkill,
       pendingBonuses: remainingBonuses,
+      pendingPenalties: remainingPenalties,
       debugForceOutcome: null,
       dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
     }
