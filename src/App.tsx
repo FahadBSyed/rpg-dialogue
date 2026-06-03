@@ -4,6 +4,7 @@ import { SkillPanel } from './components/SkillPanel'
 import { CharacterCreation } from './components/CharacterCreation'
 import { DebugControls } from './components/DebugControls'
 import { DebugConsole } from './components/DebugConsole'
+import { DiceRoller } from './components/DiceRoller'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <PhaserGame />
         <DialogueOverlay />
       </div>
+      <DiceRoller />
       <DebugControls />
       <DebugConsole />
     </div>

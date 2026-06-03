@@ -57,6 +57,14 @@ export interface LogEntry {
   appliedBonus?: { type: BonusType; description: string }
 }
 
+// An in-flight active check whose dice are being animated before the result
+// is committed to the log.
+export interface PendingRoll {
+  rolls: number[]
+  diceSize: DiceSize
+  outcome: CheckOutcome
+}
+
 export type SkillKey = keyof Skills
 
 export interface CharacterSelections {
@@ -78,6 +86,9 @@ interface GameState {
   injectedInterjections: { speaker: string; text: string }[]
   pendingBonuses: ActiveBonus[]
   debugForceOutcome: CheckOutcome | null
+  pendingRoll: PendingRoll | null
+  pendingCommit: Partial<GameState> | null
+  pendingFlashSkill: SkillKey | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
@@ -85,6 +96,7 @@ interface GameState {
   triggerPassiveChecks: (nodeId: string, checks: PassiveCheckDef[]) => void
   setDebugForce: (outcome: CheckOutcome | null) => void
   gotoNode: (nodeId: string) => void
+  commitRoll: () => void
 }
 
 function rollDice(pool: number, size: number): number[] {
@@ -229,8 +241,19 @@ export const useGameStore = create<GameState>()((set, get) => ({
   injectedInterjections: [],
   pendingBonuses: [],
   debugForceOutcome: null,
+  pendingRoll: null,
+  pendingCommit: null,
+  pendingFlashSkill: null,
 
   setDebugForce: (outcome) => set({ debugForceOutcome: outcome }),
+
+  // Apply the result of an animated active check once its dice have landed.
+  commitRoll: () => {
+    const { pendingCommit, pendingFlashSkill } = get()
+    if (!pendingCommit) return
+    set({ ...pendingCommit, pendingRoll: null, pendingCommit: null, pendingFlashSkill: null })
+    if (pendingFlashSkill) setTimeout(() => set({ flashingSkill: null }), 1200)
+  },
 
   // Debug: jump straight to a node. Clears the node from the resolved-passive
   // set so its passive checks re-fire, giving a clean fresh arrival.
@@ -356,7 +379,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       if (skill.pool < 8) {
         updatedSkills = { ...state.skills, [skillKey]: { ...skill, pool: skill.pool + 1 } }
         flashingSkill = skillKey
-        setTimeout(() => set({ flashingSkill: null }), 1200)
+        // flash is scheduled at commit time (after the dice settle)
       }
     } else {
       outcome = 'passed'
@@ -376,7 +399,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
       ? bonusesAfterUnlock.filter((_, i) => i !== bonusIdx)
       : bonusesAfterUnlock
 
-    set({
+    // The result is fully computed, but we defer applying it until the dice
+    // animation finishes (commitRoll). Stash the resolution and surface the
+    // roll for the animator.
+    const resolution: Partial<GameState> = {
       currentNodeId: nextNodeId,
       currentInterjectionIndex: 0,
       skills: updatedSkills,
@@ -386,6 +412,12 @@ export const useGameStore = create<GameState>()((set, get) => ({
       pendingBonuses: remainingBonuses,
       debugForceOutcome: null,
       dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
+    }
+
+    set({
+      pendingRoll: { rolls, diceSize: effectiveSize, outcome },
+      pendingCommit: resolution,
+      pendingFlashSkill: flashingSkill,
     })
   },
 
