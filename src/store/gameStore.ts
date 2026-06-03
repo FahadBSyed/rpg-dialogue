@@ -84,6 +84,7 @@ interface GameState {
   chooseOption: (choiceIndex: number) => void
   triggerPassiveChecks: (nodeId: string, checks: PassiveCheckDef[]) => void
   setDebugForce: (outcome: CheckOutcome | null) => void
+  gotoNode: (nodeId: string) => void
 }
 
 function rollDice(pool: number, size: number): number[] {
@@ -230,6 +231,22 @@ export const useGameStore = create<GameState>()((set, get) => ({
   debugForceOutcome: null,
 
   setDebugForce: (outcome) => set({ debugForceOutcome: outcome }),
+
+  // Debug: jump straight to a node. Clears the node from the resolved-passive
+  // set so its passive checks re-fire, giving a clean fresh arrival.
+  gotoNode: (nodeId) =>
+    set((state) => {
+      if (!dialogueNodes[nodeId]) return {}
+      const resolved = new Set(state.resolvedPassiveNodes)
+      resolved.delete(nodeId)
+      return {
+        currentNodeId: nodeId,
+        currentInterjectionIndex: 0,
+        pendingPassiveResults: [],
+        injectedInterjections: [],
+        resolvedPassiveNodes: resolved,
+      }
+    }),
 
   finalizeCharacter: (selections) =>
     set((state) => {

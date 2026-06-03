@@ -3,6 +3,7 @@ import { DialogueOverlay } from './components/DialogueOverlay'
 import { SkillPanel } from './components/SkillPanel'
 import { CharacterCreation } from './components/CharacterCreation'
 import { DebugControls } from './components/DebugControls'
+import { DebugConsole } from './components/DebugConsole'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <DialogueOverlay />
       </div>
       <DebugControls />
+      <DebugConsole />
     </div>
   )
 }
