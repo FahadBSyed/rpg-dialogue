@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useGameStore, LogEntry } from '../store/gameStore'
+import { useGameStore, LogEntry, ActiveBonus, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
 import { playScribble, playSkillChime, playCheckPass } from '../audio/soundManager'
 
@@ -40,6 +40,65 @@ const CHECK_LABELS = {
   passed:          'PASSED',
   passed_stressed: 'PASSED',
   failed:          'FAILED',
+}
+
+const BONUS_TYPE_LABELS: Record<string, string> = {
+  size_step_up: 'Die step up',
+  ignore_stress: 'Ignore stress',
+}
+
+function CheckAnnotation({ checkName, color, skill, bonuses }: {
+  checkName: string
+  color: string
+  skill: Skill
+  bonuses: ActiveBonus[]
+}) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <span
+      style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span style={{ color, fontFamily: 'monospace', fontSize: '0.72rem', letterSpacing: '0.04em' }}>
+        [{checkName} Check]
+      </span>
+      {hovered && (
+        <div style={{
+          position: 'absolute',
+          bottom: 'calc(100% + 6px)',
+          left: 0,
+          backgroundColor: '#111108',
+          border: `1px solid ${color}44`,
+          padding: '10px 14px',
+          zIndex: 30,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          minWidth: '180px',
+        }}>
+          {/* Skill dice */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: bonuses.length > 0 ? '8px' : 0 }}>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#5a4a30' }}>POOL</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color }}>
+              {skill.size} × {skill.pool}
+            </span>
+          </div>
+          {/* Bonuses */}
+          {bonuses.map((b) => (
+            <div key={b.id} style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#6a9eb0' }}>
+                + {BONUS_TYPE_LABELS[b.type] ?? b.type}
+              </span>
+              <span style={{ fontFamily: "'Georgia', serif", fontSize: '0.7rem', color: '#4a5a6a', marginLeft: '10px' }}>
+                {b.sourceDescription}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </span>
+  )
 }
 
 function CheckEntry({ entry }: { entry: LogEntry }) {
@@ -333,17 +392,20 @@ export function DialogueOverlay() {
                 >
                   {choice.text}
                   {choice.check && (() => {
-                    const checkName = skills[choice.check.skillKey].name
+                    const sk = choice.check.skillKey
+                    const skill = skills[sk]
+                    const checkName = skill.name
+                    const color = speakerColor(checkName.toUpperCase())
+                    const applicableBonuses = pendingBonuses.filter(
+                      (b) => (b.type === 'size_step_up' || b.type === 'ignore_stress') && b.skillKey === sk
+                    )
                     return (
-                      <span style={{
-                        color: speakerColor(checkName.toUpperCase()),
-                        fontFamily: 'monospace',
-                        fontSize: '0.72rem',
-                        letterSpacing: '0.04em',
-                        marginLeft: '8px',
-                      }}>
-                        [{checkName} Check]
-                      </span>
+                      <CheckAnnotation
+                        checkName={checkName}
+                        color={color}
+                        skill={skill}
+                        bonuses={applicableBonuses}
+                      />
                     )
                   })()}
                 </button>
