@@ -42,6 +42,15 @@ const CHECK_LABELS = {
   failed:          'FAILED',
 }
 
+const DICE_STEPS = ['d4', 'd6', 'd8', 'd10', 'd12'] as const
+
+function netDiceSize(base: string, sizeUps: number, sizeDowns: number): string {
+  const net = sizeUps - sizeDowns
+  const idx = DICE_STEPS.indexOf(base as typeof DICE_STEPS[number])
+  const clamped = Math.max(0, Math.min(DICE_STEPS.length - 1, idx + net))
+  return DICE_STEPS[clamped]
+}
+
 const BONUS_TYPE_LABELS: Record<string, string> = {
   size_step_up: 'Die step up',
   ignore_stress: 'Ignore stress',
@@ -61,6 +70,15 @@ function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
   penalties: ActivePenalty[]
 }) {
   const [hovered, setHovered] = useState(false)
+
+  const sizeUps = bonuses.filter((b) => b.type === 'size_step_up').length
+  const sizeDowns = penalties.filter((p) => p.type === 'size_step_down').length
+  const stressDice = penalties.filter((p) => p.type === 'add_stress_die').length
+  const effectiveSize = netDiceSize(skill.size, sizeUps, sizeDowns)
+  const effectivePool = skill.pool + stressDice
+  const sizeChanged = effectiveSize !== skill.size
+  const poolChanged = effectivePool !== skill.pool
+  const hasModifiers = bonuses.length > 0 || penalties.length > 0
 
   return (
     <span
@@ -84,12 +102,23 @@ function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
           pointerEvents: 'none',
           minWidth: '180px',
         }}>
-          {/* Skill dice */}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: bonuses.length > 0 ? '8px' : 0 }}>
+          {/* Effective dice — show base → effective when modifiers exist */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: hasModifiers ? '8px' : 0 }}>
             <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#5a4a30' }}>POOL</span>
-            <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color }}>
-              {skill.size} × {skill.pool}
-            </span>
+            {(sizeChanged || poolChanged) ? (
+              <span style={{ fontFamily: 'monospace', fontSize: '0.82rem' }}>
+                <span style={{ color: '#5a4a30', textDecoration: 'line-through', marginRight: '5px' }}>
+                  {skill.size} × {skill.pool}
+                </span>
+                <span style={{ color }}>
+                  {effectiveSize} × {effectivePool}
+                </span>
+              </span>
+            ) : (
+              <span style={{ fontFamily: 'monospace', fontSize: '0.82rem', color }}>
+                {skill.size} × {skill.pool}
+              </span>
+            )}
           </div>
           {/* Bonuses */}
           {bonuses.map((b) => (
