@@ -37,7 +37,7 @@ const CHECK_COLORS = {
 
 const CHECK_LABELS = {
   passed:          'PASSED',
-  passed_stressed: 'PASSED — STRESSED',
+  passed_stressed: 'PASSED',
   failed:          'FAILED',
 }
 
