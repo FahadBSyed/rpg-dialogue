@@ -175,6 +175,7 @@ function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
 
 export function DialogueOverlay() {
   const mode = useGameStore((s) => s.gameMode)
+  const characterCreated = useGameStore((s) => s.characterCreated)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
   const currentInterjectionIndex = useGameStore((s) => s.currentInterjectionIndex)
   const dialogueLog = useGameStore((s) => s.dialogueLog)
@@ -252,7 +253,7 @@ export function DialogueOverlay() {
     }
   }
 
-  if (mode !== 'dialogue') return null
+  if (!characterCreated || mode !== 'dialogue') return null
 
   return (
     <div style={styles.overlay}>
