@@ -14,6 +14,33 @@ function master(c: AudioContext, vol = 0.4): GainNode {
 }
 
 // ── Narrator: pencil scribble ──────────────────────────────────────────────
+export function playScribbleSoft() {
+  const c = getCtx()
+  const dur = 0.07
+  const sampleRate = c.sampleRate
+  const buf = c.createBuffer(1, sampleRate * dur, sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < data.length; i++) {
+    const t = i / sampleRate
+    const flutter = Math.abs(Math.sin(t * Math.PI * 55))
+    data[i] = (Math.random() * 2 - 1) * flutter
+  }
+  const src = c.createBufferSource()
+  src.buffer = buf
+  const hp = c.createBiquadFilter()
+  hp.type = 'highpass'
+  hp.frequency.value = 3000
+  const bp = c.createBiquadFilter()
+  bp.type = 'bandpass'
+  bp.frequency.value = 5500
+  bp.Q.value = 0.8
+  const env = c.createGain()
+  env.gain.setValueAtTime(0.4, c.currentTime)
+  env.gain.linearRampToValueAtTime(0, c.currentTime + dur)
+  src.connect(hp); hp.connect(bp); bp.connect(env); env.connect(master(c, 0.06))
+  src.start()
+}
+
 export function playScribble() {
   const c = getCtx()
   const dur = 0.12

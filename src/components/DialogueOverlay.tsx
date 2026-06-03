@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGameStore, LogEntry, ActiveBonus, ActivePenalty, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
-import { playScribble, playSkillChime, playCheckPass } from '../audio/soundManager'
+import { playScribble, playScribbleSoft, playSkillChime, playCheckPass } from '../audio/soundManager'
 
 // Colour the speaker tag by attribute / role
 const SPEAKER_COLORS: Record<string, string> = {
@@ -41,6 +41,79 @@ const CHECK_LABELS = {
   passed:          'PASSED',
   passed_stressed: 'PASSED',
   failed:          'FAILED',
+}
+
+// Split prose text into sentence-sized chunks for animated reveal.
+function splitSentences(text: string): string[] {
+  const segments: string[] = []
+  const re = /[^.!?]*[.!?]+(?=\s|$)/g
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    segments.push(m[0].trim())
+    last = re.lastIndex
+  }
+  if (last < text.length) {
+    const tail = text.slice(last).trim()
+    if (tail) segments.push(tail)
+  }
+  return segments.length > 0 ? segments : [text]
+}
+
+function AnimatedText({ text, instant, onDone, onSentenceReveal }: {
+  text: string
+  instant: boolean
+  onDone?: () => void
+  onSentenceReveal?: () => void
+}) {
+  const sentences = useMemo(() => splitSentences(text), [text])
+  const [count, setCount] = useState(instant ? sentences.length : 0)
+  // Track the count at which a skip was triggered so new spans appear without animation
+  const snapAt = useRef<number | null>(instant ? 0 : null)
+  const doneCalled = useRef(false)
+
+  function done() {
+    if (!doneCalled.current) { doneCalled.current = true; onDone?.() }
+  }
+
+  // Snap when instant becomes true mid-animation
+  useEffect(() => {
+    if (instant && snapAt.current === null) {
+      snapAt.current = count
+      setCount(sentences.length)
+      done()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instant])
+
+  // Reveal one sentence at a time
+  useEffect(() => {
+    if (instant) return
+    if (count >= sentences.length) { done(); return }
+    const delay = count === 0 ? 0 : 280
+    const t = setTimeout(() => {
+      onSentenceReveal?.()
+      setCount((c) => c + 1)
+    }, delay)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, instant, sentences.length])
+
+  return (
+    <>
+      {sentences.slice(0, count).map((s, i) => {
+        const animated = snapAt.current === null || i < snapAt.current
+        return (
+          <span
+            key={i}
+            style={{ animation: animated ? 'sentence-fade-in 0.18s ease-in forwards' : 'none' }}
+          >
+            {s}{i < sentences.length - 1 ? ' ' : ''}
+          </span>
+        )
+      })}
+    </>
+  )
 }
 
 const DICE_STEPS = ['d4', 'd6', 'd8', 'd10', 'd12'] as const
@@ -281,7 +354,12 @@ function SpeakerTag({ speaker, muted }: { speaker: string; muted: boolean }) {
   )
 }
 
-function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
+function LogLine({ entry, muted, instant = true, onDone }: {
+  entry: LogEntry
+  muted: boolean
+  instant?: boolean
+  onDone?: () => void
+}) {
   if (entry.type === 'check') return <CheckEntry entry={entry} />
   const isChoice = entry.type === 'choice'
   const textColor = muted
@@ -299,7 +377,13 @@ function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
         fontStyle: isChoice ? 'italic' : 'normal',
         letterSpacing: '0.01em',
       }}>
-        {entry.text}
+        <AnimatedText
+          key={entry.text}
+          text={entry.text}
+          instant={instant}
+          onDone={onDone}
+          onSentenceReveal={muted ? undefined : playScribbleSoft}
+        />
       </span>
     </div>
   )
@@ -319,6 +403,12 @@ export function DialogueOverlay() {
   const pendingBonuses = useGameStore((s) => s.pendingBonuses)
   const pendingPenalties = useGameStore((s) => s.pendingPenalties)
 
+  const [narratorAnimating, setNarratorAnimating] = useState(true)
+  const [animatingBeatIdx, setAnimatingBeatIdx] = useState<number | null>(null)
+  const [instant, setInstant] = useState(false)
+
+  const isAnimating = narratorAnimating || animatingBeatIdx !== null
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const isUserScrolling = useRef(false)
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -334,6 +424,21 @@ export function DialogueOverlay() {
   // Portrait follows the most recently revealed voice line.
   const lastVoice = [...revealedBeats].reverse().find((e) => e.type === 'interjection')
   const activeSpeaker = lastVoice ? lastVoice.speaker : null
+
+  // Restart narrator animation on each new node
+  useEffect(() => {
+    setNarratorAnimating(true)
+    setAnimatingBeatIdx(null)
+    setInstant(false)
+  }, [currentNodeId])
+
+  // Animate the most recently added beat
+  useEffect(() => {
+    if (revealedBeats.length > 0) {
+      setAnimatingBeatIdx(revealedBeats.length - 1)
+      setInstant(false)
+    }
+  }, [revealedBeats.length])
 
   // Auto-scroll
   useEffect(() => {
@@ -399,11 +504,21 @@ export function DialogueOverlay() {
           <LogLine
             entry={{ type: 'narrative', speaker: 'NARRATOR', text: currentNode.narrative }}
             muted={false}
+            instant={!narratorAnimating || instant}
+            onDone={() => { setNarratorAnimating(false); setInstant(false) }}
           />
 
           {/* Beats revealed so far this node (voice lines + passed passives) */}
           {revealedBeats.map((entry, i) => (
-            <LogLine key={i} entry={entry} muted={false} />
+            <LogLine
+              key={i}
+              entry={entry}
+              muted={false}
+              instant={i !== animatingBeatIdx || instant}
+              onDone={i === animatingBeatIdx
+                ? () => { setAnimatingBeatIdx(null); setInstant(false) }
+                : undefined}
+            />
           ))}
         </div>
 
@@ -425,7 +540,7 @@ export function DialogueOverlay() {
                   ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3020'
                   ;(e.currentTarget as HTMLButtonElement).style.color = '#5a5040'
                 }}
-                onClick={advanceBeat}
+                onClick={() => { if (isAnimating) { setInstant(true) } else { advanceBeat() } }}
               >
                 {nextSpeaker && (
                   <span style={{ color: speakerColor(nextSpeaker), fontFamily: 'monospace', fontSize: '0.75rem', marginRight: '10px' }}>
@@ -461,7 +576,7 @@ export function DialogueOverlay() {
                     ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#5a4a2a'
                     ;(e.currentTarget as HTMLButtonElement).style.color = '#a88a50'
                   }}
-                  onClick={() => chooseOption(i)}
+                  onClick={() => { if (isAnimating) { setInstant(true) } else { chooseOption(i) } }}
                 >
                   {choice.text}
                   {choice.check && (() => {
