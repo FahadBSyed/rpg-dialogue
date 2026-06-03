@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGameStore, LogEntry } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
-import { playScribble, playSkillChime, playCheckPass, playCheckFail } from '../audio/soundManager'
+import { playScribble, playSkillChime, playCheckPass } from '../audio/soundManager'
 
 // Colour the speaker tag by attribute / role
 const SPEAKER_COLORS: Record<string, string> = {
@@ -183,14 +183,12 @@ export function DialogueOverlay() {
   const characterCreated = useGameStore((s) => s.characterCreated)
   const skills = useGameStore((s) => s.skills)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
-  const currentInterjectionIndex = useGameStore((s) => s.currentInterjectionIndex)
   const dialogueLog = useGameStore((s) => s.dialogueLog)
-  const advanceInterjection = useGameStore((s) => s.advanceInterjection)
+  const advanceBeat = useGameStore((s) => s.advanceBeat)
   const chooseOption = useGameStore((s) => s.chooseOption)
-  const triggerPassiveChecks = useGameStore((s) => s.triggerPassiveChecks)
 
-  const pendingPassiveResults = useGameStore((s) => s.pendingPassiveResults)
-  const injectedInterjections = useGameStore((s) => s.injectedInterjections)
+  const beatCursor = useGameStore((s) => s.beatCursor)
+  const revealedBeats = useGameStore((s) => s.revealedBeats)
   const pendingBonuses = useGameStore((s) => s.pendingBonuses)
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -198,59 +196,46 @@ export function DialogueOverlay() {
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentNode = dialogueNodes[currentNodeId]
-  const effectiveInterjections = [...injectedInterjections, ...currentNode.interjections]
-  const visibleInterjections = effectiveInterjections.slice(0, currentInterjectionIndex)
-  const allInterjectionsSeen = currentInterjectionIndex >= effectiveInterjections.length
-  const nextInterjection = effectiveInterjections[currentInterjectionIndex]
-  const activeSpeaker = visibleInterjections.length > 0
-    ? visibleInterjections[visibleInterjections.length - 1].speaker
+  const beats = currentNode.beats
+  const allBeatsSeen = beatCursor >= beats.length
+  const nextBeat = beats[beatCursor]
+  // A passive beat isn't telegraphed by name — only voices show their speaker.
+  const nextSpeaker = nextBeat
+    ? (nextBeat.kind === 'voice' ? nextBeat.speaker : null)
     : null
+  // Portrait follows the most recently revealed voice line.
+  const lastVoice = [...revealedBeats].reverse().find((e) => e.type === 'interjection')
+  const activeSpeaker = lastVoice ? lastVoice.speaker : null
 
   // Auto-scroll
   useEffect(() => {
     if (!isUserScrolling.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [dialogueLog, currentInterjectionIndex])
+  }, [dialogueLog, revealedBeats])
 
-  // Passive check + scribble when node changes
+  // Scribble when the node changes
   const prevNodeId = useRef<string | null>(null)
   useEffect(() => {
     if (prevNodeId.current !== null && prevNodeId.current !== currentNodeId) {
       playScribble()
     }
     prevNodeId.current = currentNodeId
-
-    if (currentNode.passiveChecks?.length) {
-      triggerPassiveChecks(currentNodeId, currentNode.passiveChecks)
-    }
   }, [currentNodeId])
 
-  // Sound: skill chime when a new interjection is revealed
-  const prevInterjectionIndex = useRef(0)
+  // Sound as beats are revealed: a passed passive plays the pass tone; every
+  // revealed voice line (including a passive's message) plays its skill chime.
+  const prevRevealedLen = useRef(0)
   useEffect(() => {
-    if (currentInterjectionIndex > prevInterjectionIndex.current && visibleInterjections.length > 0) {
-      const speaker = visibleInterjections[visibleInterjections.length - 1].speaker
-      playSkillChime(speaker)
+    if (revealedBeats.length > prevRevealedLen.current) {
+      const fresh = revealedBeats.slice(prevRevealedLen.current)
+      fresh.forEach((e) => {
+        if (e.type === 'check' && e.passive) playCheckPass()
+        else if (e.type === 'interjection') playSkillChime(e.speaker)
+      })
     }
-    prevInterjectionIndex.current = currentInterjectionIndex
-  }, [currentInterjectionIndex, visibleInterjections])
-
-  // Sound: check outcomes
-  const prevLogLength = useRef(0)
-  useEffect(() => {
-    if (dialogueLog.length > prevLogLength.current) {
-      const newEntries = dialogueLog.slice(prevLogLength.current)
-      // Active-check sound is played by the dice roller at its reveal instant
-      // (synced with the number pop and flash). Here we only handle passives.
-      const checkEntry = newEntries.find((e) => e.type === 'check' && e.passive)
-      if (checkEntry) {
-        if (checkEntry.checkOutcome === 'failed') playCheckFail()
-        else playCheckPass()
-      }
-    }
-    prevLogLength.current = dialogueLog.length
-  }, [dialogueLog])
+    prevRevealedLen.current = revealedBeats.length
+  }, [revealedBeats])
 
   function handleScroll() {
     const el = scrollRef.current
@@ -288,18 +273,9 @@ export function DialogueOverlay() {
             muted={false}
           />
 
-          {/* Passive check results — appear after narrator text */}
-          {pendingPassiveResults.map((res, i) => (
-            <LogLine key={`passive-${i}`} entry={res} muted={false} />
-          ))}
-
-          {/* Interjections revealed so far this node */}
-          {visibleInterjections.map((inj, i) => (
-            <LogLine
-              key={i}
-              entry={{ type: 'interjection', speaker: inj.speaker, text: inj.text }}
-              muted={false}
-            />
+          {/* Beats revealed so far this node (voice lines + passed passives) */}
+          {revealedBeats.map((entry, i) => (
+            <LogLine key={i} entry={entry} muted={false} />
           ))}
         </div>
 
@@ -307,23 +283,27 @@ export function DialogueOverlay() {
         <div style={styles.choicesArea}>
           <div style={styles.fadeEdge} />
           <div style={styles.choices}>
-            {!allInterjectionsSeen ? (
-              /* Still have interjections to reveal — show speaker hint + ... */
+            {!allBeatsSeen ? (
+              /* More beats to reveal — show the next voice's speaker, or a
+                 neutral prompt for an (untelegraphed) passive check */
               <button
                 style={styles.continueButton}
                 onMouseEnter={(e) => {
-                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = speakerColor(nextInterjection.speaker)
-                  ;(e.currentTarget as HTMLButtonElement).style.color = speakerColor(nextInterjection.speaker)
+                  const c = nextSpeaker ? speakerColor(nextSpeaker) : '#8a7a4a'
+                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = c
+                  ;(e.currentTarget as HTMLButtonElement).style.color = c
                 }}
                 onMouseLeave={(e) => {
                   ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3020'
                   ;(e.currentTarget as HTMLButtonElement).style.color = '#5a5040'
                 }}
-                onClick={advanceInterjection}
+                onClick={advanceBeat}
               >
-                <span style={{ color: speakerColor(nextInterjection.speaker), fontFamily: 'monospace', fontSize: '0.75rem', marginRight: '10px' }}>
-                  [{nextInterjection.speaker}]
-                </span>
+                {nextSpeaker && (
+                  <span style={{ color: speakerColor(nextSpeaker), fontFamily: 'monospace', fontSize: '0.75rem', marginRight: '10px' }}>
+                    [{nextSpeaker}]
+                  </span>
+                )}
                 …
               </button>
             ) : (

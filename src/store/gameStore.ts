@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { dialogueNodes } from '../data/dialogueData'
-import type { PassiveCheckDef } from '../data/dialogueData'
 
 export type DiceSize = 'd4' | 'd6' | 'd8' | 'd10' | 'd12'
 
@@ -78,12 +77,13 @@ interface GameState {
   skills: Skills
   characterCreated: boolean
   currentNodeId: string
-  currentInterjectionIndex: number
+  // The beat sequence is revealed one step at a time. `beatCursor` is the index
+  // of the next beat to process; `revealedBeats` is what has been shown so far
+  // in the current node (voice lines + passed passive results).
+  beatCursor: number
+  revealedBeats: LogEntry[]
   dialogueLog: LogEntry[]
   flashingSkill: SkillKey | null
-  resolvedPassiveNodes: Set<string>
-  pendingPassiveResults: LogEntry[]
-  injectedInterjections: { speaker: string; text: string }[]
   pendingBonuses: ActiveBonus[]
   debugForceOutcome: CheckOutcome | null
   pendingRoll: PendingRoll | null
@@ -92,9 +92,8 @@ interface GameState {
   resultFlash: { outcome: CheckOutcome; id: number } | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
-  advanceInterjection: () => void
+  advanceBeat: () => void
   chooseOption: (choiceIndex: number) => void
-  triggerPassiveChecks: (nodeId: string, checks: PassiveCheckDef[]) => void
   setDebugForce: (outcome: CheckOutcome | null) => void
   gotoNode: (nodeId: string) => void
   commitRoll: () => void
@@ -235,12 +234,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
   characterCreated: false,
   currentNodeId: 'goblin_start',
-  currentInterjectionIndex: 0,
+  beatCursor: 0,
+  revealedBeats: [],
   dialogueLog: [],
   flashingSkill: null,
-  resolvedPassiveNodes: new Set(),
-  pendingPassiveResults: [],
-  injectedInterjections: [],
   pendingBonuses: [],
   debugForceOutcome: null,
   pendingRoll: null,
@@ -261,19 +258,14 @@ export const useGameStore = create<GameState>()((set, get) => ({
     if (pendingFlashSkill) setTimeout(() => set({ flashingSkill: null }), 1200)
   },
 
-  // Debug: jump straight to a node. Clears the node from the resolved-passive
-  // set so its passive checks re-fire, giving a clean fresh arrival.
+  // Debug: jump straight to a node, fresh (beats unrevealed, ready to roll).
   gotoNode: (nodeId) =>
-    set((state) => {
+    set(() => {
       if (!dialogueNodes[nodeId]) return {}
-      const resolved = new Set(state.resolvedPassiveNodes)
-      resolved.delete(nodeId)
       return {
         currentNodeId: nodeId,
-        currentInterjectionIndex: 0,
-        pendingPassiveResults: [],
-        injectedInterjections: [],
-        resolvedPassiveNodes: resolved,
+        beatCursor: 0,
+        revealedBeats: [],
       }
     }),
 
@@ -291,32 +283,77 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
   setMode: (mode) => set({ gameMode: mode }),
 
-  advanceInterjection: () =>
-    set((state) => ({
-      currentInterjectionIndex: state.currentInterjectionIndex + 1,
-    })),
+  // Reveal the next beat. Voice beats reveal directly; passive beats roll the
+  // moment they are reached — on a pass they reveal a tag + message (and grant
+  // any bonus), on a fail they are silently skipped (processing continues to
+  // the next beat so the click always surfaces something, or reaches the end).
+  advanceBeat: () => {
+    const state = get()
+    const beats = dialogueNodes[state.currentNodeId].beats
+    let cursor = state.beatCursor
+    const revealed = [...state.revealedBeats]
+    let bonuses = state.pendingBonuses
+    const force = state.debugForceOutcome
+    let forceConsumed = false
+    let revealedSomething = false
+
+    while (cursor < beats.length && !revealedSomething) {
+      const beat = beats[cursor]
+      if (beat.kind === 'voice') {
+        revealed.push({ type: 'interjection', speaker: beat.speaker, text: beat.text })
+        cursor++
+        revealedSomething = true
+      } else {
+        const skill = state.skills[beat.skillKey]
+        const size = parseInt(skill.size.slice(1))
+        const forceThis = force && !forceConsumed ? force : null
+        if (forceThis) forceConsumed = true
+        const rolls = forceThis
+          ? forcedRolls(skill.pool, size, forceThis)
+          : rollDice(skill.pool, size)
+        const passed = !rolls.some((r) => r === 1)
+        cursor++
+        if (passed) {
+          revealed.push({
+            type: 'check',
+            speaker: skill.name.toUpperCase(),
+            text: '',
+            checkOutcome: 'passed',
+            checkRolls: rolls,
+            checkDiceSize: skill.size,
+            passive: true,
+          })
+          revealed.push({
+            type: 'interjection',
+            speaker: beat.successInterjection.speaker,
+            text: beat.successInterjection.text,
+          })
+          if (beat.successBonus) {
+            bonuses = [...bonuses, { ...beat.successBonus, id: newBonusId() }]
+          }
+          revealedSomething = true
+        }
+        // on fail: nothing revealed, loop continues to the next beat
+      }
+    }
+
+    set({
+      beatCursor: cursor,
+      revealedBeats: revealed,
+      pendingBonuses: bonuses,
+      ...(forceConsumed ? { debugForceOutcome: null } : {}),
+    })
+  },
 
   chooseOption: (choiceIndex) => {
     const state = get()
     const node = dialogueNodes[state.currentNodeId]
     const choice = node.choices[choiceIndex]
 
-    // Flush passive results and injected interjections into history
-    const injectedLog: LogEntry[] = state.injectedInterjections.map((i) => ({
-      type: 'interjection' as const,
-      speaker: i.speaker,
-      text: i.text,
-    }))
-
+    // Flush the narrator line and everything revealed this node into history.
     const baseLog: LogEntry[] = [
       { type: 'narrative', speaker: 'NARRATOR', text: node.narrative },
-      ...state.pendingPassiveResults,
-      ...injectedLog,
-      ...node.interjections.map((i) => ({
-        type: 'interjection' as const,
-        speaker: i.speaker,
-        text: i.text,
-      })),
+      ...state.revealedBeats,
       { type: 'choice', speaker: 'YOU', text: choice.text },
     ]
 
@@ -330,9 +367,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
     if (!choice.check) {
       set({
         currentNodeId: choice.nextNodeId,
-        currentInterjectionIndex: 0,
-        pendingPassiveResults: [],
-        injectedInterjections: [],
+        beatCursor: 0,
+        revealedBeats: [],
         pendingBonuses: bonusesAfterUnlock,
         dialogueLog: [...state.dialogueLog, ...baseLog],
       })
@@ -410,11 +446,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
     // roll for the animator.
     const resolution: Partial<GameState> = {
       currentNodeId: nextNodeId,
-      currentInterjectionIndex: 0,
+      beatCursor: 0,
+      revealedBeats: [],
       skills: updatedSkills,
       flashingSkill,
-      pendingPassiveResults: [],
-      injectedInterjections: [],
       pendingBonuses: remainingBonuses,
       debugForceOutcome: null,
       dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
@@ -424,49 +459,6 @@ export const useGameStore = create<GameState>()((set, get) => ({
       pendingRoll: { rolls, diceSize: effectiveSize, outcome },
       pendingCommit: resolution,
       pendingFlashSkill: flashingSkill,
-    })
-  },
-
-  triggerPassiveChecks: (nodeId, checks) => {
-    const state = get()
-    if (state.resolvedPassiveNodes.has(nodeId)) return
-
-    const forced = state.debugForceOutcome
-    const results: LogEntry[] = []
-    const injected = [...state.injectedInterjections]
-    const bonuses = [...state.pendingBonuses]
-
-    checks.forEach((pc) => {
-      const skill = state.skills[pc.skillKey]
-      const diceSize = parseInt(skill.size.slice(1))
-      const rolls = forced
-        ? forcedRolls(skill.pool, diceSize, forced)
-        : rollDice(skill.pool, diceSize)
-      const passed = !rolls.some((r) => r === 1)
-
-      results.push({
-        type: 'check',
-        speaker: skill.name.toUpperCase(),
-        text: '',
-        checkOutcome: passed ? 'passed' : 'failed',
-        checkRolls: rolls,
-        checkDiceSize: skill.size,
-        passive: true,
-      })
-
-      if (passed && pc.successInterjection) injected.push(pc.successInterjection)
-      if (passed && pc.successBonus) bonuses.push({ ...pc.successBonus, id: newBonusId() })
-    })
-
-    const resolved = new Set(state.resolvedPassiveNodes)
-    resolved.add(nodeId)
-
-    set({
-      resolvedPassiveNodes: resolved,
-      pendingPassiveResults: results,
-      injectedInterjections: injected,
-      pendingBonuses: bonuses,
-      debugForceOutcome: null,
     })
   },
 }))

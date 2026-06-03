@@ -120,9 +120,8 @@ The goal is that every approach to an encounter touches at least two or three sk
 Dialogue is node-based, defined in `dialogueData.ts`. Each node contains:
 
 - **Narrator text** — the scene, delivered in second person
-- **Passive check** (optional) — fires automatically when the node loads; can unlock interjections or modify the node's available choices
-- **Skill interjections** — each tagged with a skill name and attribute; delivered sequentially via a `...` continue button; never all at once
-- **Player choices** — some always visible, some gated on check results or bonuses
+- **Beats** — an ordered list the player advances through one at a time via the `…` continue button. Each beat is either a **voice** (a skill's interjection, tagged with its name and attribute) or a **passive check** at an authored position. Beats are never shown all at once.
+- **Player choices** — some always visible, some gated on bonuses
 
 The interface is an infinite-scroll log. History fades upward. The current node is live at the bottom. Speaker portraits appear for skill voices (not the Narrator), colour-coded by attribute: FLESH, WIT, STATION, INSTINCT each have a distinct colour. The Narrator has no portrait.
 
@@ -137,7 +136,7 @@ The interface is an infinite-scroll log. History fades upward. The current node 
 
 The stress spiral is intentional: more dice means more chances to fail and more chances to stress again. Skills become less reliable the harder you lean on them.
 
-**Passive checks** fire automatically when a node loads. Same dice mechanics, but odd results never cause stress. They can reward attentiveness without punishing it.
+**Passive checks** sit at authored positions in a node's beat sequence and are rolled the moment the player advances to them — not pre-rolled on entry. Same dice mechanics, but odd results never cause stress. On a **pass**, the check's tag line and its skill message pop in immediately (and any bonus is granted); on a **fail**, the beat is silently skipped — the player never sees it, Disco Elysium style. Because each passive resolves at its own beat, two passives are never rolled together and revealed out of order.
 
 ---
 
@@ -209,21 +208,37 @@ The sounds are functional feedback, not decoration. Stress is audibly wrong. The
 
 ## 5. Dialogue Data Format
 
-Nodes, choices, and interjections are all defined in `dialogueData.ts`. The key types:
+Nodes, beats, and choices are all defined in `dialogueData.ts`. The key types:
 
-### Nodes
+### Nodes & Beats
 
 ```ts
 interface DialogueNode {
   id: string
   narrative: string
-  passiveChecks?: PassiveCheckDef[]   // one per skill; all fire when the node loads
-  interjections: Interjection[]
+  beats: Beat[]            // ordered; revealed one at a time
   choices: DialogueChoice[]
+}
+
+type Beat = VoiceBeat | PassiveBeat
+
+interface VoiceBeat {
+  kind: 'voice'
+  id?: string
+  speaker: string
+  text: string
+}
+
+interface PassiveBeat {
+  kind: 'passive'
+  id?: string
+  skillKey: SkillKey
+  successInterjection: Interjection   // shown only on a pass
+  successBonus?: { type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }
 }
 ```
 
-`passiveChecks` is an array — a node can fire multiple passive voices at once. Each check resolves independently; on success, its `successInterjection` is prepended to the interjection queue and its `successBonus` is added to the bonus pool.
+A node's content is one ordered `beats` array. Voice beats reveal directly when reached. Passive beats roll at that moment: on a pass they reveal a `[PASSIVE]` tag plus the `successInterjection` and grant any `successBonus`; on a fail they are silently skipped. Interleave passives among voices to place a check exactly where its message belongs.
 
 ### Choices
 
@@ -260,8 +275,8 @@ Three goblins stand between Fiodor and the onward passage. They haven't seen him
 ### Node map
 
 ```
-goblin_start  ── passives: Wayfinding (maps room → +die to Danger Sense)
-               │            Scavenging (finds corpse-veil → unlocks /poison)
+goblin_start  ── beats: [voice DangerSense] · [passive Wayfinding → +die to DangerSense]
+               │         [voice Scarring]    · [passive Scavenging → unlocks /poison]
                │
                ├─ sneak   → Danger Sense ──┬─ pass ──→ goblin_slip
                │                           └─ fail ──→ goblin_spotted
