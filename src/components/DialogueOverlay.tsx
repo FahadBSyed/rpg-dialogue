@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGameStore, LogEntry, ActiveBonus, ActivePenalty, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
