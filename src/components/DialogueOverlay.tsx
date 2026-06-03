@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useGameStore, LogEntry } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
+import { playScribble, playSkillChime, playCheckPass, playCheckFail, playCheckStress } from '../audio/soundManager'
 
 // Colour the speaker tag by attribute / role
 const SPEAKER_COLORS: Record<string, string> = {
@@ -190,11 +191,46 @@ export function DialogueOverlay() {
     ? visibleInterjections[visibleInterjections.length - 1].speaker
     : null
 
+  // Auto-scroll
   useEffect(() => {
     if (!isUserScrolling.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [dialogueLog, currentInterjectionIndex])
+
+  // Sound: scribble when narrator text changes (new node)
+  const prevNodeId = useRef<string | null>(null)
+  useEffect(() => {
+    if (prevNodeId.current !== null && prevNodeId.current !== currentNodeId) {
+      playScribble()
+    }
+    prevNodeId.current = currentNodeId
+  }, [currentNodeId])
+
+  // Sound: skill chime when a new interjection is revealed
+  const prevInterjectionIndex = useRef(0)
+  useEffect(() => {
+    if (currentInterjectionIndex > prevInterjectionIndex.current && visibleInterjections.length > 0) {
+      const speaker = visibleInterjections[visibleInterjections.length - 1].speaker
+      playSkillChime(speaker)
+    }
+    prevInterjectionIndex.current = currentInterjectionIndex
+  }, [currentInterjectionIndex, visibleInterjections])
+
+  // Sound: check outcomes
+  const prevLogLength = useRef(0)
+  useEffect(() => {
+    if (dialogueLog.length > prevLogLength.current) {
+      const newEntries = dialogueLog.slice(prevLogLength.current)
+      const checkEntry = newEntries.find((e) => e.type === 'check')
+      if (checkEntry) {
+        if (checkEntry.checkOutcome === 'passed') playCheckPass()
+        else if (checkEntry.checkOutcome === 'passed_stressed') playCheckStress()
+        else if (checkEntry.checkOutcome === 'failed') playCheckFail()
+      }
+    }
+    prevLogLength.current = dialogueLog.length
+  }, [dialogueLog])
 
   function handleScroll() {
     const el = scrollRef.current
