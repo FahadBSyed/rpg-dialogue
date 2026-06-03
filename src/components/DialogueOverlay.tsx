@@ -47,6 +47,7 @@ function CheckEntry({ entry }: { entry: LogEntry }) {
   const outcome = entry.checkOutcome!
   const rolls = entry.checkRolls!
   const color = CHECK_COLORS[outcome]
+  const tag = entry.passive ? '[PASSIVE]' : '[SKILL CHECK]'
 
   return (
     <div
@@ -55,7 +56,7 @@ function CheckEntry({ entry }: { entry: LogEntry }) {
       onMouseLeave={() => setHovered(false)}
     >
       <span style={{ color: '#3a3030', fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '0.08em', marginRight: '10px', flexShrink: 0 }}>
-        [SKILL CHECK]
+        {tag}
       </span>
       <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.06em', color, cursor: 'default' }}>
         {entry.speaker} — {CHECK_LABELS[outcome]}
@@ -178,6 +179,7 @@ export function DialogueOverlay() {
   const dialogueLog = useGameStore((s) => s.dialogueLog)
   const advanceInterjection = useGameStore((s) => s.advanceInterjection)
   const chooseOption = useGameStore((s) => s.chooseOption)
+  const triggerPassiveCheck = useGameStore((s) => s.triggerPassiveCheck)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const isUserScrolling = useRef(false)
@@ -198,13 +200,17 @@ export function DialogueOverlay() {
     }
   }, [dialogueLog, currentInterjectionIndex])
 
-  // Sound: scribble when narrator text changes (new node)
+  // Passive check + scribble when node changes
   const prevNodeId = useRef<string | null>(null)
   useEffect(() => {
     if (prevNodeId.current !== null && prevNodeId.current !== currentNodeId) {
       playScribble()
     }
     prevNodeId.current = currentNodeId
+
+    if (currentNode.passiveCheck) {
+      triggerPassiveCheck(currentNode.passiveCheck.skillKey, currentNodeId)
+    }
   }, [currentNodeId])
 
   // Sound: skill chime when a new interjection is revealed
@@ -224,9 +230,9 @@ export function DialogueOverlay() {
       const newEntries = dialogueLog.slice(prevLogLength.current)
       const checkEntry = newEntries.find((e) => e.type === 'check')
       if (checkEntry) {
-        if (checkEntry.checkOutcome === 'passed') playCheckPass()
-        else if (checkEntry.checkOutcome === 'passed_stressed') playCheckStress()
-        else if (checkEntry.checkOutcome === 'failed') playCheckFail()
+        if (checkEntry.checkOutcome === 'failed') playCheckFail()
+        else if (checkEntry.checkOutcome === 'passed_stressed' && !checkEntry.passive) playCheckStress()
+        else if (checkEntry.checkOutcome === 'passed' || (checkEntry.checkOutcome === 'passed_stressed' && checkEntry.passive)) playCheckPass()
       }
     }
     prevLogLength.current = dialogueLog.length

@@ -42,6 +42,7 @@ export interface LogEntry {
   checkOutcome?: CheckOutcome
   checkRolls?: number[]
   checkDiceSize?: DiceSize
+  passive?: boolean
 }
 
 export type SkillKey = keyof Skills
@@ -60,10 +61,12 @@ interface GameState {
   currentInterjectionIndex: number
   dialogueLog: LogEntry[]
   flashingSkill: SkillKey | null
+  resolvedPassiveNodes: Set<string>
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
   chooseOption: (choiceIndex: number) => void
+  triggerPassiveCheck: (skillKey: SkillKey, nodeId: string) => void
 }
 
 function rollDice(pool: number, size: number): number[] {
@@ -171,6 +174,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   currentInterjectionIndex: 0,
   dialogueLog: [],
   flashingSkill: null,
+  resolvedPassiveNodes: new Set(),
 
   finalizeCharacter: (selections) =>
     set((state) => {
@@ -253,6 +257,34 @@ export const useGameStore = create<GameState>()((set, get) => ({
       skills: updatedSkills,
       flashingSkill,
       dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
+    })
+  },
+
+  triggerPassiveCheck: (skillKey, nodeId) => {
+    const state = get()
+    if (state.resolvedPassiveNodes.has(nodeId)) return
+
+    const skill = state.skills[skillKey]
+    const diceSize = parseInt(skill.size.slice(1))
+    const rolls = rollDice(skill.pool, diceSize)
+    const outcome: CheckOutcome = rolls.some((r) => r === 1) ? 'failed' : 'passed'
+
+    const entry: LogEntry = {
+      type: 'check',
+      speaker: skill.name.toUpperCase(),
+      text: '',
+      checkOutcome: outcome,
+      checkRolls: rolls,
+      checkDiceSize: skill.size,
+      passive: true,
+    }
+
+    const resolved = new Set(state.resolvedPassiveNodes)
+    resolved.add(nodeId)
+
+    set({
+      resolvedPassiveNodes: resolved,
+      dialogueLog: [...state.dialogueLog, entry],
     })
   },
 }))

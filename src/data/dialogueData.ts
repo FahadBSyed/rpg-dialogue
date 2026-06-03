@@ -14,6 +14,7 @@ export interface Interjection {
 export interface DialogueNode {
   id: string
   narrative: string
+  passiveCheck?: { skillKey: SkillKey }
   interjections: Interjection[]
   choices: DialogueChoice[]
 }
@@ -21,6 +22,7 @@ export interface DialogueNode {
 export const dialogueNodes: Record<string, DialogueNode> = {
   start: {
     id: 'start',
+    passiveCheck: { skillKey: 'dangerSense' },
     narrative:
       'The passage ends at a chasm. No warning — just floor, and then not. The gap is maybe eight feet across. Maybe ten. The torch doesn\'t reach the bottom. Something moves in the air coming up from it, a cold that isn\'t quite wind.',
     interjections: [
