@@ -404,10 +404,13 @@ export function DialogueOverlay() {
   const pendingPenalties = useGameStore((s) => s.pendingPenalties)
 
   const [narratorAnimating, setNarratorAnimating] = useState(true)
-  const [animatingBeatIdx, setAnimatingBeatIdx] = useState<number | null>(null)
+  const [lastBeatDone, setLastBeatDone] = useState(true)
   const [instant, setInstant] = useState(false)
 
-  const isAnimating = narratorAnimating || animatingBeatIdx !== null
+  // The last revealed beat is always the animating one — computed inline, not via effect,
+  // so the new LogLine sees instant=false on its very first render.
+  const lastBeatIdx = revealedBeats.length - 1
+  const isAnimating = narratorAnimating || !lastBeatDone
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const isUserScrolling = useRef(false)
@@ -428,14 +431,14 @@ export function DialogueOverlay() {
   // Restart narrator animation on each new node
   useEffect(() => {
     setNarratorAnimating(true)
-    setAnimatingBeatIdx(null)
+    setLastBeatDone(true)
     setInstant(false)
   }, [currentNodeId])
 
-  // Animate the most recently added beat
+  // Mark the incoming beat as not done so isAnimating stays true until it finishes
   useEffect(() => {
     if (revealedBeats.length > 0) {
-      setAnimatingBeatIdx(revealedBeats.length - 1)
+      setLastBeatDone(false)
       setInstant(false)
     }
   }, [revealedBeats.length])
@@ -514,9 +517,9 @@ export function DialogueOverlay() {
               key={i}
               entry={entry}
               muted={false}
-              instant={i !== animatingBeatIdx || instant}
-              onDone={i === animatingBeatIdx
-                ? () => { setAnimatingBeatIdx(null); setInstant(false) }
+              instant={i < lastBeatIdx || (i === lastBeatIdx && instant)}
+              onDone={i === lastBeatIdx
+                ? () => { setLastBeatDone(true); setInstant(false) }
                 : undefined}
             />
           ))}
