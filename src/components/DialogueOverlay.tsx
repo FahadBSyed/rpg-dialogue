@@ -186,10 +186,11 @@ export function DialogueOverlay() {
   const dialogueLog = useGameStore((s) => s.dialogueLog)
   const advanceInterjection = useGameStore((s) => s.advanceInterjection)
   const chooseOption = useGameStore((s) => s.chooseOption)
-  const triggerPassiveCheck = useGameStore((s) => s.triggerPassiveCheck)
+  const triggerPassiveChecks = useGameStore((s) => s.triggerPassiveChecks)
 
-  const pendingPassiveResult = useGameStore((s) => s.pendingPassiveResult)
+  const pendingPassiveResults = useGameStore((s) => s.pendingPassiveResults)
   const injectedInterjections = useGameStore((s) => s.injectedInterjections)
+  const pendingBonuses = useGameStore((s) => s.pendingBonuses)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const isUserScrolling = useRef(false)
@@ -219,9 +220,8 @@ export function DialogueOverlay() {
     }
     prevNodeId.current = currentNodeId
 
-    if (currentNode.passiveCheck) {
-      const { skillKey, successInterjection, successBonus } = currentNode.passiveCheck
-      triggerPassiveCheck(skillKey, currentNodeId, successInterjection, successBonus)
+    if (currentNode.passiveChecks?.length) {
+      triggerPassiveChecks(currentNodeId, currentNode.passiveChecks)
     }
   }, [currentNodeId])
 
@@ -286,8 +286,10 @@ export function DialogueOverlay() {
             muted={false}
           />
 
-          {/* Passive check result — appears after narrator text */}
-          {pendingPassiveResult && <LogLine entry={pendingPassiveResult} muted={false} />}
+          {/* Passive check results — appear after narrator text */}
+          {pendingPassiveResults.map((res, i) => (
+            <LogLine key={`passive-${i}`} entry={res} muted={false} />
+          ))}
 
           {/* Interjections revealed so far this node */}
           {visibleInterjections.map((inj, i) => (
@@ -323,8 +325,17 @@ export function DialogueOverlay() {
                 …
               </button>
             ) : (
-              /* All interjections seen — show story choices */
-              currentNode.choices.map((choice, i) => (
+              /* All interjections seen — show story choices (unlock-gated ones
+                 only when a matching unlock_choice bonus is pending) */
+              currentNode.choices
+                .map((choice, i) => ({ choice, i }))
+                .filter(({ choice }) =>
+                  !choice.requiresUnlock ||
+                  pendingBonuses.some(
+                    (b) => b.type === 'unlock_choice' && b.unlockKey === choice.requiresUnlock
+                  )
+                )
+                .map(({ choice, i }) => (
                 <button
                   key={i}
                   style={styles.choiceButton}

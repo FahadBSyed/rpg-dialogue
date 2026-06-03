@@ -4,6 +4,8 @@ export interface DialogueChoice {
   text: string
   nextNodeId: string
   check?: { skillKey: SkillKey; failNodeId?: string }
+  // Only shown when a matching `unlock_choice` bonus is currently pending.
+  requiresUnlock?: string
 }
 
 export interface Interjection {
@@ -14,13 +16,13 @@ export interface Interjection {
 export interface PassiveCheckDef {
   skillKey: SkillKey
   successInterjection?: Interjection
-  successBonus?: { type: BonusType; skillKey?: SkillKey; sourceDescription: string }
+  successBonus?: { type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }
 }
 
 export interface DialogueNode {
   id: string
   narrative: string
-  passiveCheck?: PassiveCheckDef
+  passiveChecks?: PassiveCheckDef[]
   interjections: Interjection[]
   choices: DialogueChoice[]
 }
@@ -34,20 +36,36 @@ export interface DialogueNode {
 export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_start: {
     id: 'goblin_start',
-    // Supporting skill (Wayfinding) maps the room and, on success, sets up the
-    // primary skill (Danger Sense) for the sneak — a size step-up bonus.
-    passiveCheck: {
-      skillKey: 'wayfinding',
-      successInterjection: {
-        speaker: 'WAYFINDING',
-        text: 'The room is three steps and a shadow. The pacing one walks a circuit — fire, wall, passage, back. Eleven seconds, give or take. There is a dead angle behind the rubble pile, left of centre, where none of the three can see at once. Wait in the dark. Move on the turn. Stand in that angle and let the circuit close around nothing.',
+    passiveChecks: [
+      // Supporting skill (Wayfinding) maps the room and, on success, sets up
+      // the primary skill (Danger Sense) for the sneak — a size step-up bonus.
+      {
+        skillKey: 'wayfinding',
+        successInterjection: {
+          speaker: 'WAYFINDING',
+          text: 'The room is three steps and a shadow. The pacing one walks a circuit — fire, wall, passage, back. Eleven seconds, give or take. There is a dead angle behind the rubble pile, left of centre, where none of the three can see at once. Wait in the dark. Move on the turn. Stand in that angle and let the circuit close around nothing.',
+        },
+        successBonus: {
+          type: 'size_step_up',
+          skillKey: 'dangerSense',
+          sourceDescription: 'Wayfinding mapped the gap',
+        },
       },
-      successBonus: {
-        type: 'size_step_up',
-        skillKey: 'dangerSense',
-        sourceDescription: 'Wayfinding mapped the gap',
+      // Scavenging spots something poisonous in reach. On success it unlocks
+      // the "poison their food" approach (an unlock_choice bonus).
+      {
+        skillKey: 'scavenging',
+        successInterjection: {
+          speaker: 'SCAVENGING',
+          text: 'There — the pale fungus clustered on the damp wall behind the rubble. Corpse-veil. It only grows where something died and it keeps a little of whatever did the killing. A crushed handful worked into something they\'re about to eat would be more than enough. Waste not.',
+        },
+        successBonus: {
+          type: 'unlock_choice',
+          unlockKey: 'poison',
+          sourceDescription: 'Scavenging found corpse-veil',
+        },
       },
-    },
+    ],
     narrative:
       'The tunnel opens into a low chamber and you stop before your boot finds the light. Three goblins. A cookfire, something on a spit above it that you decide not to identify, a scatter of bones and dented tin. Two of them crouch arguing over a small bright thing. The third paces the far edge of the firelight — back and forth, past the second passage. The passage you need. None of them have seen you. Not yet.',
     interjections: [
@@ -69,6 +87,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Wait for the gap in his circuit, then move.',
         nextNodeId: 'goblin_slip',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
+      },
+      {
+        text: 'Creep to the cookfire and work the corpse-veil into the meat.',
+        nextNodeId: 'goblin_poison_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
+        requiresUnlock: 'poison',
       },
       {
         text: 'Stay in the dark and study them a while longer.',
@@ -97,6 +121,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_slip',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
+      {
+        text: 'Creep to the cookfire and work the corpse-veil into the meat.',
+        nextNodeId: 'goblin_poison_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
+        requiresUnlock: 'poison',
+      },
     ],
   },
 
@@ -116,6 +146,56 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { text: 'Press on into the dark.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_poison_success: {
+    id: 'goblin_poison_success',
+    narrative:
+      'You wait for the pacing one to turn, then cross low to the edge of the fire. The corpse-veil crumbles to a grey dust between your fingers and you press it into the underside of the meat, where char hides the colour. Three breaths and it\'s done. You\'re back in the dark before the circuit comes around. Behind you the argument breaks — someone is hungry. They haul the spit from the flame and tear into it, and you walk past the mouth of their chamber while they eat the thing that is going to kill them.',
+    interjections: [
+      {
+        speaker: 'DECEPTION',
+        text: 'Slow hands. Natural hands. Nothing furtive — furtive is what gets seen. You belonged at that fire for exactly as long as you needed to belong there, and not one breath more. That is the whole art of it.',
+      },
+      {
+        speaker: 'DANGER SENSE',
+        text: 'Don\'t stay to watch it work. Watching is for people who want to be remembered. Walk.',
+      },
+      {
+        speaker: 'HUNGER',
+        text: 'It did smell good. I want it on record that some part of me is sorry about the waste. Only some part.',
+      },
+    ],
+    choices: [
+      { text: 'Leave them to it. Press on.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_poison_caught: {
+    id: 'goblin_poison_caught',
+    narrative:
+      'Your hand is in the meat when the pacing goblin\'s circuit comes up short. He sees the grey dust on your fingers before he sees your face, and there is no version of this that reads as anything but exactly what it is. He shrieks — not fear, outrage — and the other two are already up. You are crouched at their fire with your hand in their dinner and nowhere good to be.',
+    interjections: [
+      {
+        speaker: 'DECEPTION',
+        text: 'No lie covers this. Don\'t reach for one — a bad lie now just buys them a reason. The only thing left to sell is distance.',
+      },
+      {
+        speaker: 'SCARRING',
+        text: 'Caught with your hand in it. You know this exact flavour of caught. Move before the shape of it finishes forming around you.',
+      },
+      {
+        speaker: 'ENDURANCE',
+        text: 'Up. Now. Push off the fire-stones and run — the passage is past the small one, and the small one is slow.',
+      },
+    ],
+    choices: [
+      {
+        text: 'Kick the fire at them and bolt.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+      },
     ],
   },
 
