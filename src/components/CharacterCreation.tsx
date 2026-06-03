@@ -73,7 +73,7 @@ export function CharacterCreation() {
       <div style={styles.panel}>
         <h2 style={styles.title}>Distribute Your Abilities</h2>
         <p style={styles.subtitle}>
-          All skills begin at <span style={styles.dim}>2d4</span>. Assign your strongest to larger dice.
+          All skills begin at <span style={styles.dim}>1d4</span>. Assign your strongest to larger dice.
         </p>
 
         <div style={styles.groups}>

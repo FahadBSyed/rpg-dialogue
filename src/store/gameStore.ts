@@ -78,19 +78,19 @@ export const useGameStore = create<GameState>()((set, get) => ({
     endurance: {
       name: 'Endurance',
       attribute: 'FLESH',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: "The body's refusal to quit — slow, stubborn, almost bovine.",
     },
     scarring: {
       name: 'Scarring',
       attribute: 'FLESH',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: 'Every wound remembers the thing that made it.',
     },
     hunger: {
       name: 'Hunger',
       attribute: 'FLESH',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description:
         'Recognizes compulsion and appetite in all their forms — including your own.',
     },
@@ -99,25 +99,25 @@ export const useGameStore = create<GameState>()((set, get) => ({
     dungeonLore: {
       name: 'Dungeon Lore',
       attribute: 'WIT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: 'Catalogues monsters, traps, and architecture obsessively.',
     },
     appraisal: {
       name: 'Appraisal',
       attribute: 'WIT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: 'Everything has a price. Everything can be assessed.',
     },
     wayfinding: {
       name: 'Wayfinding',
       attribute: 'WIT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: 'Reads rooms and tunnels like text.',
     },
     scavenging: {
       name: 'Scavenging',
       attribute: 'WIT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: 'Sees potential where others see waste.',
     },
 
@@ -125,20 +125,20 @@ export const useGameStore = create<GameState>()((set, get) => ({
     reputation: {
       name: 'Reputation',
       attribute: 'STATION',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: 'Knows exactly what people say about you, and why.',
     },
     deception: {
       name: 'Deception',
       attribute: 'STATION',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description:
         'The social weapons of the powerless — misdirection, playing small.',
     },
     spite: {
       name: 'Spite',
       attribute: 'STATION',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description:
         'The chip on the shoulder as a fuel source. Dangerous when left unattended.',
     },
@@ -147,21 +147,21 @@ export const useGameStore = create<GameState>()((set, get) => ({
     dangerSense: {
       name: 'Danger Sense',
       attribute: 'INSTINCT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description:
         "Wordless and urgent. Doesn't explain itself — just insists.",
     },
     superstition: {
       name: 'Superstition',
       attribute: 'INSTINCT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description:
         'Knows the old delver rituals and folk wisdom. Irrational but right.',
     },
     theDeep: {
       name: 'The Deep',
       attribute: 'INSTINCT',
-      size: 'd4', pool: 2,
+      size: 'd4', pool: 1,
       description: "Slow, vast, barely verbal. Knows things it shouldn't.",
     },
   },
