@@ -151,10 +151,10 @@ export function DiceRoller() {
       }
     })
 
-    const G = 22
-    const SETTLE = 1.3      // seconds of tumble
-    const REVEAL = 1.9      // labels fully shown by here
-    const DONE = 2.5        // commit
+    const G = 26
+    const SETTLE = 1.0      // seconds of tumble
+    const REVEAL = 1.5      // labels fully shown by here
+    const DONE = 2.0        // commit
     let last = performance.now()
     let elapsed = 0
     let raf = 0
