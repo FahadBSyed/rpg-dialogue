@@ -75,15 +75,39 @@ interface GameState {
   pendingPassiveResult: LogEntry | null
   injectedInterjections: { speaker: string; text: string }[]
   pendingBonuses: ActiveBonus[]
+  debugForceOutcome: CheckOutcome | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
   chooseOption: (choiceIndex: number) => void
   triggerPassiveCheck: (skillKey: SkillKey, nodeId: string, successInterjection?: { speaker: string; text: string }, successBonus?: Omit<ActiveBonus, 'id'>) => void
+  setDebugForce: (outcome: CheckOutcome | null) => void
 }
 
 function rollDice(pool: number, size: number): number[] {
   return Array.from({ length: pool }, () => Math.floor(Math.random() * size) + 1)
+}
+
+// Returns synthetic rolls that will produce the requested outcome.
+// pass → all evens, stress → at least one odd (no 1s), fail → at least one 1.
+function forcedRolls(pool: number, size: number, outcome: CheckOutcome): number[] {
+  const rolls = Array.from({ length: pool }, () => Math.floor(Math.random() * size) + 1)
+  if (outcome === 'failed') {
+    rolls[0] = 1
+    return rolls
+  }
+  if (outcome === 'passed_stressed') {
+    // ensure no 1s, at least one odd
+    return rolls.map((r, i) => {
+      const safe = r === 1 ? 3 : r
+      return i === 0 ? (safe % 2 === 0 ? (safe + 1 <= size ? safe + 1 : safe - 1) : safe) : (safe === 1 ? 3 : safe)
+    })
+  }
+  // passed → all even, no 1s
+  return rolls.map((r) => {
+    if (r % 2 !== 0 || r === 1) return r + 1 <= size ? r + 1 : r - 1
+    return r
+  })
 }
 
 const DICE_SIZES: DiceSize[] = ['d4', 'd6', 'd8', 'd10', 'd12']
@@ -201,6 +225,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
   pendingPassiveResult: null,
   injectedInterjections: [],
   pendingBonuses: [],
+  debugForceOutcome: null,
+
+  setDebugForce: (outcome) => set({ debugForceOutcome: outcome }),
 
   finalizeCharacter: (selections) =>
     set((state) => {
@@ -282,7 +309,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
     }
 
     const diceSize = parseInt(effectiveSize.slice(1))
-    const rolls = rollDice(effectivePool, diceSize)
+    const forced = state.debugForceOutcome
+    const rolls = forced
+      ? forcedRolls(effectivePool, diceSize, forced)
+      : rollDice(effectivePool, diceSize)
 
     const hasFailed = rolls.some((r) => r === 1)
     const hasOdd = !hasFailed && rolls.some((r) => r % 2 !== 0)
@@ -328,6 +358,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       pendingPassiveResult: null,
       injectedInterjections: [],
       pendingBonuses: remainingBonuses,
+      debugForceOutcome: null,
       dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
     })
   },
@@ -338,7 +369,10 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     const skill = state.skills[skillKey]
     const diceSize = parseInt(skill.size.slice(1))
-    const rolls = rollDice(skill.pool, diceSize)
+    const forced = state.debugForceOutcome
+    const rolls = forced
+      ? forcedRolls(skill.pool, diceSize, forced)
+      : rollDice(skill.pool, diceSize)
     const passed = !rolls.some((r) => r === 1)
     const outcome: CheckOutcome = passed ? 'passed' : 'failed'
 
@@ -368,6 +402,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       pendingPassiveResult: entry,
       injectedInterjections: newInjected,
       pendingBonuses: newBonuses,
+      debugForceOutcome: null,
     })
   },
 }))

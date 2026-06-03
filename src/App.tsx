@@ -2,6 +2,7 @@ import { PhaserGame } from './game/PhaserGame'
 import { DialogueOverlay } from './components/DialogueOverlay'
 import { SkillPanel } from './components/SkillPanel'
 import { CharacterCreation } from './components/CharacterCreation'
+import { DebugControls } from './components/DebugControls'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <PhaserGame />
         <DialogueOverlay />
       </div>
+      <DebugControls />
     </div>
   )
 }
