@@ -36,11 +36,11 @@ function SpeakerPortrait({ speaker }: { speaker: string }) {
   return (
     <div style={{
       position: 'absolute',
-      left: '-105px',
-      top: '66.666%',
+      left: '-131px',
+      top: '33.333%',
       transform: 'translateY(-50%)',
-      width: '96px',
-      height: '120px',
+      width: '120px',
+      height: '150px',
       backgroundColor: '#000',
       border: `1px solid ${color}33`,
       display: 'flex',
@@ -50,8 +50,8 @@ function SpeakerPortrait({ speaker }: { speaker: string }) {
       boxShadow: `-4px 0 20px rgba(0,0,0,0.8)`,
     }}>
       <div style={{
-        width: '72px',
-        height: '72px',
+        width: '90px',
+        height: '90px',
         borderRadius: '50%',
         backgroundColor: `${color}22`,
         border: `1px solid ${color}88`,
