@@ -1,6 +1,9 @@
 import type { SkillKey, BonusType } from '../store/gameStore'
 
 export interface DialogueChoice {
+  // Stable handle for referring to this link in conversation, e.g.
+  // "link goblin_spotted/bolt to ...". Unique within its node.
+  id?: string
   text: string
   nextNodeId: string
   check?: { skillKey: SkillKey; failNodeId?: string }
@@ -9,6 +12,7 @@ export interface DialogueChoice {
 }
 
 export interface Interjection {
+  id?: string
   speaker: string
   text: string
 }
@@ -84,17 +88,20 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       {
+        id: 'sneak',
         text: 'Wait for the gap in his circuit, then move.',
         nextNodeId: 'goblin_slip',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
       {
+        id: 'poison',
         text: 'Creep to the cookfire and work the corpse-veil into the meat.',
         nextNodeId: 'goblin_poison_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
         requiresUnlock: 'poison',
       },
       {
+        id: 'observe',
         text: 'Stay in the dark and study them a while longer.',
         nextNodeId: 'goblin_observe',
       },
@@ -117,11 +124,13 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       {
+        id: 'sneak',
         text: 'Enough watching. Move on the next turn.',
         nextNodeId: 'goblin_slip',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
       {
+        id: 'poison',
         text: 'Creep to the cookfire and work the corpse-veil into the meat.',
         nextNodeId: 'goblin_poison_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
@@ -145,7 +154,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { text: 'Press on into the dark.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Press on into the dark.', nextNodeId: 'goblin_start' },
     ],
   },
 
@@ -168,7 +177,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { text: 'Leave them to it. Press on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Leave them to it. Press on.', nextNodeId: 'goblin_start' },
     ],
   },
 
@@ -192,6 +201,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       {
+        id: 'bolt',
         text: 'Kick the fire at them and bolt.',
         nextNodeId: 'goblin_escaped',
         check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
@@ -219,6 +229,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       {
+        id: 'bolt',
         text: 'Bolt for the passage and outrun them.',
         nextNodeId: 'goblin_escaped',
         check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
@@ -241,7 +252,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { text: 'Catch your breath, then go on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Catch your breath, then go on.', nextNodeId: 'goblin_start' },
     ],
   },
 
@@ -264,7 +275,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_start' },
+      { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_start' },
     ],
   },
 }
