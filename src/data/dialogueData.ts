@@ -1,6 +1,9 @@
+import type { SkillKey } from '../store/gameStore'
+
 export interface DialogueChoice {
   text: string
   nextNodeId: string
+  check?: { skillKey: SkillKey; failNodeId?: string }
 }
 
 export interface Interjection {
@@ -126,6 +129,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
+      {
+        text: 'Study the arrangement. You have seen something like this before.',
+        nextNodeId: 'examine_stones',
+        check: { skillKey: 'dungeonLore', failNodeId: 'examine_stones_fail' },
+      },
       { text: 'Examine the stone arrangement.', nextNodeId: 'examine_stones' },
       { text: 'Circle the room along the wall.', nextNodeId: 'circle_room' },
       { text: 'Go back the way you came.', nextNodeId: 'left_tunnel' },
@@ -183,6 +191,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
+      {
+        text: 'Take the unrecognized stone. Your instincts say it matters.',
+        nextNodeId: 'take_stone',
+        check: { skillKey: 'superstition', failNodeId: 'take_stone_fail' },
+      },
       { text: 'Take one of the stones.', nextNodeId: 'take_stone' },
       { text: 'Leave it as you found it.', nextNodeId: 'circle_room' },
     ],
@@ -210,6 +223,46 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       { text: 'Descend.', nextNodeId: 'press_forward' },
       { text: 'Go back to the stone arrangement.', nextNodeId: 'examine_stones' },
       { text: 'Return the way you came.', nextNodeId: 'left_tunnel' },
+    ],
+  },
+
+  examine_stones_fail: {
+    id: 'examine_stones_fail',
+    narrative:
+      'You crouch over the arrangement for a long time. The stones resist meaning. You know they are significant — the care taken is obvious — but whatever system they encode is beyond you. You are looking at a language you do not speak.',
+    interjections: [
+      {
+        speaker: 'DUNGEON LORE',
+        text: 'You catalogued the stone types. You noted the deliberate placement. The gap between observation and understanding has never felt wider.',
+      },
+      {
+        speaker: 'SPITE',
+        text: 'Someone knew something you don\'t. That is an unpleasant sentence to sit with.',
+      },
+    ],
+    choices: [
+      { text: 'Continue studying — perhaps something will become clear.', nextNodeId: 'examine_stones' },
+      { text: 'Leave it. Move on.', nextNodeId: 'circle_room' },
+    ],
+  },
+
+  take_stone_fail: {
+    id: 'take_stone_fail',
+    narrative:
+      'Your hand closes around the unrecognized stone. Something resists — not physically, but in a way that is harder to describe. You release it. The room feels the same as it did before you reached. That is somehow worse.',
+    interjections: [
+      {
+        speaker: 'SUPERSTITION',
+        text: 'You felt it. Whatever gave you the instinct to take it also told you, in the same moment, that you were wrong. Those two things should not both be true.',
+      },
+      {
+        speaker: 'THE DEEP',
+        text: 'The stone is still there. It is not finished with you.',
+      },
+    ],
+    choices: [
+      { text: 'Try again. Take it anyway.', nextNodeId: 'take_stone' },
+      { text: 'Step back. Leave it alone.', nextNodeId: 'circle_room' },
     ],
   },
 

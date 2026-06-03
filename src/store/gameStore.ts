@@ -33,10 +33,15 @@ export interface Skills {
 
 export type GameMode = 'exploration' | 'dialogue'
 
+export type CheckOutcome = 'passed' | 'passed_stressed' | 'failed'
+
 export interface LogEntry {
-  type: 'narrative' | 'choice' | 'interjection'
+  type: 'narrative' | 'choice' | 'interjection' | 'check'
   speaker: string
   text: string
+  checkOutcome?: CheckOutcome
+  checkRolls?: number[]
+  checkDiceSize?: DiceSize
 }
 
 export type SkillKey = keyof Skills
@@ -54,13 +59,18 @@ interface GameState {
   currentNodeId: string
   currentInterjectionIndex: number
   dialogueLog: LogEntry[]
+  flashingSkill: SkillKey | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   advanceInterjection: () => void
   chooseOption: (choiceIndex: number) => void
 }
 
-export const useGameStore = create<GameState>()((set) => ({
+function rollDice(pool: number, size: number): number[] {
+  return Array.from({ length: pool }, () => Math.floor(Math.random() * size) + 1)
+}
+
+export const useGameStore = create<GameState>()((set, get) => ({
   gameMode: 'dialogue',
 
   skills: {
@@ -160,6 +170,7 @@ export const useGameStore = create<GameState>()((set) => ({
   currentNodeId: 'start',
   currentInterjectionIndex: 0,
   dialogueLog: [],
+  flashingSkill: null,
 
   finalizeCharacter: (selections) =>
     set((state) => {
@@ -180,23 +191,68 @@ export const useGameStore = create<GameState>()((set) => ({
       currentInterjectionIndex: state.currentInterjectionIndex + 1,
     })),
 
-  chooseOption: (choiceIndex) =>
-    set((state) => {
-      const node = dialogueNodes[state.currentNodeId]
-      const choice = node.choices[choiceIndex]
-      return {
-        currentNodeId: choice.nextNodeId,
-        currentInterjectionIndex: 0,
-        dialogueLog: [
-          ...state.dialogueLog,
-          { type: 'narrative', speaker: 'NARRATOR', text: node.narrative },
-          ...node.interjections.map((i) => ({
-            type: 'interjection' as const,
-            speaker: i.speaker,
-            text: i.text,
-          })),
-          { type: 'choice', speaker: 'YOU', text: choice.text },
-        ],
+  chooseOption: (choiceIndex) => {
+    const state = get()
+    const node = dialogueNodes[state.currentNodeId]
+    const choice = node.choices[choiceIndex]
+
+    const baseLog: LogEntry[] = [
+      { type: 'narrative', speaker: 'NARRATOR', text: node.narrative },
+      ...node.interjections.map((i) => ({
+        type: 'interjection' as const,
+        speaker: i.speaker,
+        text: i.text,
+      })),
+      { type: 'choice', speaker: 'YOU', text: choice.text },
+    ]
+
+    if (!choice.check) {
+      set({ currentNodeId: choice.nextNodeId, currentInterjectionIndex: 0, dialogueLog: [...state.dialogueLog, ...baseLog] })
+      return
+    }
+
+    const { skillKey, failNodeId } = choice.check
+    const skill = state.skills[skillKey]
+    const diceSize = parseInt(skill.size.slice(1))
+    const rolls = rollDice(skill.pool, diceSize)
+
+    const hasFailed = rolls.some((r) => r === 1)
+    const hasOdd = !hasFailed && rolls.some((r) => r % 2 !== 0)
+
+    let outcome: CheckOutcome
+    let nextNodeId = choice.nextNodeId
+    let updatedSkills = state.skills
+    let flashingSkill: SkillKey | null = null
+
+    if (hasFailed) {
+      outcome = 'failed'
+      if (failNodeId) nextNodeId = failNodeId
+    } else if (hasOdd) {
+      outcome = 'passed_stressed'
+      if (skill.pool < 8) {
+        updatedSkills = { ...state.skills, [skillKey]: { ...skill, pool: skill.pool + 1 } }
+        flashingSkill = skillKey
+        setTimeout(() => set({ flashingSkill: null }), 1200)
       }
-    }),
+    } else {
+      outcome = 'passed'
+    }
+
+    const checkEntry: LogEntry = {
+      type: 'check',
+      speaker: skill.name.toUpperCase(),
+      text: '',
+      checkOutcome: outcome,
+      checkRolls: rolls,
+      checkDiceSize: skill.size,
+    }
+
+    set({
+      currentNodeId: nextNodeId,
+      currentInterjectionIndex: 0,
+      skills: updatedSkills,
+      flashingSkill,
+      dialogueLog: [...state.dialogueLog, ...baseLog, checkEntry],
+    })
+  },
 }))

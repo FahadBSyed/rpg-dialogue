@@ -15,6 +15,7 @@ const ATTRIBUTES: AttributeGroup[] = [
 
 export function SkillPanel() {
   const skills = useGameStore((s) => s.skills)
+  const flashingSkill = useGameStore((s) => s.flashingSkill)
 
   return (
     <aside style={styles.panel}>
@@ -24,8 +25,9 @@ export function SkillPanel() {
           <div style={styles.attributeLabel}>{attr.label}</div>
           {attr.keys.map((key) => {
             const skill = skills[key]
+            const isFlashing = flashingSkill === key
             return (
-              <div key={key} style={styles.skillRow}>
+              <div key={key} style={styles.skillRow} className={isFlashing ? 'skill-flashing' : ''}>
                 <span style={styles.skillName}>{skill.name}</span>
                 <span style={styles.skillLevel}>{skill.pool}{skill.size}</span>
               </div>

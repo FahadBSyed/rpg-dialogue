@@ -27,3 +27,15 @@ button:focus-visible {
   outline: 1px solid #c8a96e;
   outline-offset: 2px;
 }
+
+@keyframes skill-stress-flash {
+  0%   { background-color: transparent; }
+  20%  { background-color: #b8922a44; }
+  50%  { background-color: #b8922a22; }
+  75%  { background-color: #b8922a44; }
+  100% { background-color: transparent; }
+}
+
+.skill-flashing {
+  animation: skill-stress-flash 1.2s ease-out forwards;
+}

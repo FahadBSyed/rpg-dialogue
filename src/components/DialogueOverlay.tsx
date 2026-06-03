@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGameStore, LogEntry } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
 
@@ -27,6 +27,67 @@ const SPEAKER_COLORS: Record<string, string> = {
 
 function speakerColor(speaker: string): string {
   return SPEAKER_COLORS[speaker] ?? '#8a8a8a'
+}
+
+const CHECK_COLORS = {
+  passed:          '#4a9a4a',
+  passed_stressed: '#b8922a',
+  failed:          '#9a3a3a',
+}
+
+const CHECK_LABELS = {
+  passed:          'PASSED',
+  passed_stressed: 'PASSED — STRESSED',
+  failed:          'FAILED',
+}
+
+function CheckEntry({ entry }: { entry: LogEntry }) {
+  const [hovered, setHovered] = useState(false)
+  const outcome = entry.checkOutcome!
+  const rolls = entry.checkRolls!
+  const color = CHECK_COLORS[outcome]
+
+  return (
+    <div
+      style={{ display: 'flex', alignItems: 'baseline', marginBottom: '16px', position: 'relative' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span style={{ color: '#3a3030', fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '0.08em', marginRight: '10px', flexShrink: 0 }}>
+        [SKILL CHECK]
+      </span>
+      <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', letterSpacing: '0.06em', color, cursor: 'default' }}>
+        {entry.speaker} — {CHECK_LABELS[outcome]}
+      </span>
+      {hovered && (
+        <div style={{
+          position: 'absolute',
+          left: 0,
+          bottom: '100%',
+          marginBottom: '6px',
+          backgroundColor: '#1a1a0e',
+          border: `1px solid ${color}55`,
+          padding: '8px 14px',
+          zIndex: 20,
+          whiteSpace: 'nowrap',
+        }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#6a6040', marginRight: '8px' }}>
+            {entry.checkDiceSize} ×{rolls.length}
+          </span>
+          {rolls.map((r, i) => {
+            const isFail = r === 1
+            const isOdd = r % 2 !== 0
+            const dieColor = isFail ? '#9a3a3a' : isOdd ? '#b8922a' : '#4a9a4a'
+            return (
+              <span key={i} style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: dieColor, marginRight: i < rolls.length - 1 ? '8px' : 0 }}>
+                {r}
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function SpeakerPortrait({ speaker }: { speaker: string }) {
@@ -86,6 +147,7 @@ function SpeakerTag({ speaker, muted }: { speaker: string; muted: boolean }) {
 }
 
 function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
+  if (entry.type === 'check') return <CheckEntry entry={entry} />
   const isChoice = entry.type === 'choice'
   const textColor = muted
     ? (isChoice ? '#3a3028' : '#4a4038')
