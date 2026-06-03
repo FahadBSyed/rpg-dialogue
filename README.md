@@ -120,8 +120,8 @@ The goal is that every approach to an encounter touches at least two or three sk
 Dialogue is node-based, defined in `dialogueData.ts`. Each node contains:
 
 - **Narrator text** — the scene, delivered in second person
-- **Beats** — an ordered list the player advances through one at a time via the `…` continue button. Each beat is either a **voice** (a skill's interjection, tagged with its name and attribute) or a **passive check** at an authored position. Beats are never shown all at once.
-- **Player choices** — some always visible, some gated on bonuses
+- **Beats** — an ordered list the player advances through one at a time via the `…` continue button. Each beat is either a **voice** (a skill's interjection) or a **passive check** at an authored position. Beats are never shown all at once.
+- **Player choices** — some always visible, some gated on bonuses, some hidden by penalties
 
 The interface is an infinite-scroll log. History fades upward. The current node is live at the bottom. Speaker portraits appear for skill voices (not the Narrator), colour-coded by attribute: FLESH, WIT, STATION, INSTINCT each have a distinct colour. The Narrator has no portrait.
 
@@ -129,14 +129,26 @@ The interface is an infinite-scroll log. History fades upward. The current node 
 
 ### Skill Checks
 
-**Active checks** are triggered by a player choice. Roll pool × size dice (e.g. 3d8).
-- **Fail** if any die shows 1
-- **Pass** if all dice avoid 1
-- **Stress** if any die shows an odd number and no dice show 1 — pool increases by 1, max 8
+**Active checks** are triggered by a player choice. Roll pool × size dice (e.g. 3d8). Dice are animated in 3D (WebGL via Three.js) before the result is committed.
+- **Fail** if any die shows 1 — screen flashes red, heavy shake
+- **Pass** if all dice avoid 1 — screen flashes green, no shake
+- **Stress** if any die shows an odd number and no dice show 1 — pool increases by 1 (max 8), screen flashes amber, mild shake
+
+The number reveal, gradient flash, and sound all fire simultaneously at the moment the dice settle (~1 second). Clicking before that skips to the reveal instantly.
 
 The stress spiral is intentional: more dice means more chances to fail and more chances to stress again. Skills become less reliable the harder you lean on them.
 
 **Passive checks** sit at authored positions in a node's beat sequence and are rolled the moment the player advances to them — not pre-rolled on entry. Same dice mechanics, but odd results never cause stress. On a **pass**, the check's tag line and its skill message pop in immediately (and any bonus is granted); on a **fail**, the beat is silently skipped — the player never sees it, Disco Elysium style. Because each passive resolves at its own beat, two passives are never rolled together and revealed out of order.
+
+---
+
+### Check Annotation Tooltip
+
+Choices that trigger a check show `[Skill Name Check]` inline. Hovering that tag opens a popover with:
+
+- **Pool** — current die size × pool count
+- Any active **bonuses** for that skill (type + source)
+- Any active **penalties** for that skill (type + source), shown in red
 
 ---
 
@@ -163,15 +175,29 @@ More dice increases both failure probability and stress probability. This is the
 
 ### The Bonus System
 
-Passive check successes (and future game events) can grant bonuses that persist until consumed. Three types:
+Passive check successes (and future game events) can grant bonuses that persist in `pendingBonuses` until consumed. Three types:
 
-| Bonus | Effect |
-|---|---|
-| **Size step-up** | The skill's die size increases one step (d4→d6, etc.) for one check |
-| **Ignore stress** | Roll only 1dX for one check regardless of pool — stress cannot trigger |
-| **Unlock choice** | Adds a dialogue option that wasn't previously available |
+| Bonus | Effect | Consumed when |
+|---|---|---|
+| **Size step-up** | The skill's die size increases one step (d4→d6, etc.) for one check | Check fires |
+| **Ignore stress** | Roll only 1dX for one check regardless of pool — stress cannot trigger | Check fires |
+| **Unlock choice** | Adds a dialogue option that wasn't previously available | That choice is taken |
 
-Bonuses are stored in game state and applied automatically when the relevant check fires. The check log entry records when a bonus was active.
+Bonuses are applied automatically when the relevant check fires. The check log entry records when a bonus was active.
+
+---
+
+### The Penalty System
+
+Penalties are the mirror of bonuses. They are granted by voice beats (any skill's interjection can carry them) and persist in `pendingPenalties` until consumed. Three types:
+
+| Penalty | Effect | Consumed when |
+|---|---|---|
+| **Size step-down** | The skill's die size decreases one step (d8→d6, etc.) for one check | Check fires |
+| **Add stress die** | +1 die added to the pool for one check, increasing stress and fail odds | Check fires |
+| **Lock choice** | Hides a normally-visible dialogue option while the penalty is active | (persistent) |
+
+Authoring: add a `penalties` array to a `VoiceBeat`. When that beat reveals, each penalty is pushed into game state. Example: Hunger's beat in `goblin_observe` steps down Danger Sense and Deception — the player chose to linger and now their focus is compromised.
 
 ---
 
@@ -183,7 +209,7 @@ On boot, a creation screen allows allocation of skill upgrades before play begin
 - 2 skills to **d8**
 - 1 skill to **d10**
 
-No skill can be assigned twice. The game does not begin until all five slots are filled. These choices are the first characterisation decision: they tell you, before a word of dialogue, what kind of delver Fiodor has become.
+No skill can be assigned twice. A **Randomize** button shuffles all five slots automatically for quick playtesting. The game does not begin until all five slots are filled.
 
 ---
 
@@ -227,6 +253,13 @@ interface VoiceBeat {
   id?: string
   speaker: string
   text: string
+  // Optional: penalties applied to game state when this beat reveals
+  penalties?: Array<{
+    type: PenaltyType       // 'size_step_down' | 'add_stress_die' | 'lock_choice'
+    skillKey?: SkillKey
+    lockKey?: string
+    sourceDescription: string
+  }>
 }
 
 interface PassiveBeat {
@@ -234,33 +267,37 @@ interface PassiveBeat {
   id?: string
   skillKey: SkillKey
   successInterjection: Interjection   // shown only on a pass
-  successBonus?: { type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }
+  successBonus?: {
+    type: BonusType         // 'size_step_up' | 'ignore_stress' | 'unlock_choice'
+    skillKey?: SkillKey
+    unlockKey?: string
+    sourceDescription: string
+  }
 }
 ```
 
-A node's content is one ordered `beats` array. Voice beats reveal directly when reached. Passive beats roll at that moment: on a pass they reveal a `[PASSIVE]` tag plus the `successInterjection` and grant any `successBonus`; on a fail they are silently skipped. Interleave passives among voices to place a check exactly where its message belongs.
+A node's content is one ordered `beats` array. Voice beats reveal directly when reached, and may carry `penalties` that take effect at that moment. Passive beats roll at that moment: on a pass they reveal a `[PASSIVE]` tag plus the `successInterjection` and grant any `successBonus`; on a fail they are silently skipped.
 
 ### Choices
 
 ```ts
 interface DialogueChoice {
-  id?: string           // stable handle for referring to this link (e.g. "goblin_start/sneak")
+  id?: string             // stable handle, e.g. "goblin_start/sneak"
   text: string
   nextNodeId: string
   check?: { skillKey: SkillKey; failNodeId?: string }
   requiresUnlock?: string   // hidden until a matching unlock_choice bonus is pending
+  lockedBy?: string         // hidden while a matching lock_choice penalty is active
 }
 ```
 
-`id` is optional but should be set on any choice you want to refer to in conversation. The convention is `node/choice-id` (e.g. `goblin_spotted/bolt`).
-
-`requiresUnlock` gates a choice behind an `unlock_choice` bonus. The choice is invisible until the bonus exists; taking the choice consumes the bonus.
+`requiresUnlock` and `lockedBy` are opposites: one needs a bonus to become visible, the other needs a penalty to disappear.
 
 ### Interjections
 
 ```ts
 interface Interjection {
-  id?: string    // optional reference handle; fill in when needed
+  id?: string
   speaker: string
   text: string
 }
@@ -285,12 +322,16 @@ goblin_start  ── beats: [voice DangerSense] · [passive Wayfinding → +die 
                │            (requires       └─ fail ──→ goblin_poison_caught
                │             corpse-veil)
                │
-               └─ observe → goblin_observe ─┬─ sneak  (same Danger Sense check)
-                                            └─ poison (same Deception check, still gated)
+               └─ observe → goblin_observe ─┬─ sneak  → Danger Sense (−1 step: Hunger)
+                                            └─ poison → Deception    (−1 step: Hunger)
+
+goblin_observe ── beats: [voice DangerSense] · [voice Hunger ⚠ penalty: −die DangerSense, −die Deception]
 
 goblin_spotted       /bolt → Endurance ─┬─ pass → goblin_escaped
 goblin_poison_caught /bolt → Endurance ─┘         └─ fail → goblin_cornered
 ```
+
+Waiting and watching costs focus: when Hunger speaks in `goblin_observe`, it applies a `size_step_down` penalty to both Danger Sense and Deception. Both checks are still possible — just harder.
 
 ### Current passes
 
@@ -298,6 +339,7 @@ goblin_poison_caught /bolt → Endurance ─┘         └─ fail → goblin_c
 |---|---|---|---|
 | 1 | Sneak past | Danger Sense | Wayfinding passive (+die) |
 | 2 | Poison food | Deception | Scavenging passive (unlock) |
+| — | Wait and observe | — | Hunger penalty (−die to both alternatives) |
 
 Planned: ambush, terrify, lure-monster, lure-trap, ally/threat/fake-goblin/divide talking gambits, last-stand combat.
 
@@ -329,7 +371,62 @@ Press **`/`** to open a command palette. Currently supported:
 
 The console filters matching node ids as you type, showing each id alongside a snippet of its narrative. **↑ / ↓** selects, **Tab** completes, **Enter** jumps, **Esc** closes.
 
-`goto` clears the target node from the resolved-passive registry, so passive checks re-fire on arrival — every jump is a clean entry.
+`goto` resets the target node to a clean state: beat cursor at 0, no revealed beats, and all pending bonuses and penalties cleared. Every jump is a fresh entry.
 
-Composing the two tools: `/goto goblin_start` then press **P** to force the Scavenging passive to pass and reveal the poison choice.
+Composing the two tools: `/goto goblin_observe` then press **P** to force the next passive to pass, then make a choice to see how the Hunger penalty affects the check.
 
+---
+
+## 8. Streaming Architecture Plan
+
+### The Problem
+
+At full-game scale, statically importing all dialogue data at bundle time doesn't work. A finished game could have hundreds of nodes across many scenarios. Most of that data is irrelevant to the current moment.
+
+### The Approach: Encounter Chunks
+
+The game is divided into self-contained **scenario chunks** — one JSON file per encounter (e.g. `goblin-chamber.json`, `merchant-district.json`). A chunk contains everything local to that encounter: its nodes, beats, and choices. A global registry in the main bundle maps node IDs to their chunk file — this registry is tiny (just `{ nodeId → chunkFile }`) and loads with the app.
+
+**Loading flow:**
+1. App boots with the registry and the player's global state (skills, inventory, persistent bonuses/penalties). No scenario data yet.
+2. When the player enters an encounter, the engine looks up the starting node's chunk and fetches it.
+3. Choices in the current node tell you exactly which chunks you'll need next — prefetch them on choice render. By the time the player clicks, the data is already in memory.
+4. When a scenario ends (see below), its chunk is released and the next one fetches.
+
+This keeps the active memory footprint to roughly two chunks at a time (current + one lookahead).
+
+### What Escapes a Scenario
+
+Some state originates in a scenario but must outlast it. At the scenario boundary, this state is serialised into global game state:
+
+- **Pending bonuses / penalties** — if Wayfinding granted a +die bonus that wasn't consumed before the encounter ended, it carries forward
+- **Inventory** — items found or spent
+- **Skill pool changes** — stress is permanent; pool values belong to global state, not the chunk
+- **Completed scenario flags** — which encounters have been seen, for future branch conditions
+
+The scenario chunk itself never needs to know about cross-scenario state. The engine merges it on load.
+
+### The Scenario Boundary
+
+Currently all terminal nodes loop back to `goblin_start` for testing. In production, a scenario needs a defined exit. The cleanest mechanism is a flag on a choice:
+
+```ts
+interface DialogueChoice {
+  // ...existing fields...
+  endsScenario?: true   // triggers: flush persistent state, release chunk, load next
+}
+```
+
+When a choice with `endsScenario` is taken, the engine serialises carry-forward state, unloads the current chunk, and transitions to the world layer (map, hub, or next node in the sequence).
+
+### What to Build and When
+
+The current static import works fine for a single encounter. The refactor makes sense once there are 3–4 distinct scenarios:
+
+1. **Extract** each scenario into its own `src/data/scenarios/<name>.ts` (or JSON)
+2. **Build the registry** — a flat `{ [nodeId]: chunkPath }` object in the main bundle
+3. **Replace static import** with a `loadChunk(nodeId)` function that returns a promise and caches the result
+4. **Add `endsScenario`** to the terminal choices of each finished encounter
+5. **Prefetch on choice render** — when choices appear, fire `loadChunk` for each `nextNodeId` in the background
+
+Steps 1–2 are mechanical and can be done in an afternoon. Steps 3–5 are where the real work is, but they're isolated to the engine layer and don't touch authored content at all.
