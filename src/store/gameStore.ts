@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { dialogueNodes } from '../data/dialogueData'
 
 export interface Skill {
   name: string
@@ -29,10 +30,18 @@ export interface Skills {
 
 export type GameMode = 'exploration' | 'dialogue'
 
+export interface LogEntry {
+  type: 'narrative' | 'choice'
+  text: string
+}
+
 interface GameState {
   gameMode: GameMode
   skills: Skills
+  currentNodeId: string
+  dialogueLog: LogEntry[]
   setMode: (mode: GameMode) => void
+  chooseOption: (choiceIndex: number) => void
 }
 
 export const useGameStore = create<GameState>()((set) => ({
@@ -131,5 +140,22 @@ export const useGameStore = create<GameState>()((set) => ({
     },
   },
 
+  currentNodeId: 'start',
+  dialogueLog: [],
+
   setMode: (mode) => set({ gameMode: mode }),
+
+  chooseOption: (choiceIndex) =>
+    set((state) => {
+      const node = dialogueNodes[state.currentNodeId]
+      const choice = node.choices[choiceIndex]
+      return {
+        currentNodeId: choice.nextNodeId,
+        dialogueLog: [
+          ...state.dialogueLog,
+          { type: 'narrative', text: node.narrative },
+          { type: 'choice', text: choice.text },
+          ],
+      }
+    }),
 }))
