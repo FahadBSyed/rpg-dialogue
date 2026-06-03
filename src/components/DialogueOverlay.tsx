@@ -181,6 +181,7 @@ function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
 export function DialogueOverlay() {
   const mode = useGameStore((s) => s.gameMode)
   const characterCreated = useGameStore((s) => s.characterCreated)
+  const skills = useGameStore((s) => s.skills)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
   const currentInterjectionIndex = useGameStore((s) => s.currentInterjectionIndex)
   const dialogueLog = useGameStore((s) => s.dialogueLog)
@@ -350,6 +351,20 @@ export function DialogueOverlay() {
                   onClick={() => chooseOption(i)}
                 >
                   {choice.text}
+                  {choice.check && (() => {
+                    const checkName = skills[choice.check.skillKey].name
+                    return (
+                      <span style={{
+                        color: speakerColor(checkName.toUpperCase()),
+                        fontFamily: 'monospace',
+                        fontSize: '0.72rem',
+                        letterSpacing: '0.04em',
+                        marginLeft: '8px',
+                      }}>
+                        [{checkName} Check]
+                      </span>
+                    )
+                  })()}
                 </button>
               ))
             )}
