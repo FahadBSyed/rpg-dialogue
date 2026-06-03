@@ -29,6 +29,53 @@ function speakerColor(speaker: string): string {
   return SPEAKER_COLORS[speaker] ?? '#8a8a8a'
 }
 
+function SpeakerPortrait({ speaker }: { speaker: string }) {
+  const color = speakerColor(speaker)
+  const words = speaker.split(' ')
+
+  return (
+    <div style={{
+      position: 'absolute',
+      left: '-105px',
+      top: '66.666%',
+      transform: 'translateY(-50%)',
+      width: '96px',
+      height: '120px',
+      backgroundColor: '#000',
+      border: `1px solid ${color}33`,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 12,
+      boxShadow: `-4px 0 20px rgba(0,0,0,0.8)`,
+    }}>
+      <div style={{
+        width: '72px',
+        height: '72px',
+        borderRadius: '50%',
+        backgroundColor: `${color}22`,
+        border: `1px solid ${color}88`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '6px',
+      }}>
+        <span style={{
+          color: color,
+          fontSize: words.length > 1 ? '0.55rem' : '0.62rem',
+          fontFamily: 'monospace',
+          textAlign: 'center',
+          letterSpacing: '0.04em',
+          lineHeight: 1.4,
+          textTransform: 'uppercase',
+        }}>
+          {words.map((w, i) => <span key={i}>{w}{i < words.length - 1 ? <br /> : ''}</span>)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function SpeakerTag({ speaker, muted }: { speaker: string; muted: boolean }) {
   const color = muted ? '#3a3030' : speakerColor(speaker)
   return (
@@ -77,6 +124,9 @@ export function DialogueOverlay() {
   const visibleInterjections = currentNode.interjections.slice(0, currentInterjectionIndex)
   const allInterjectionsSeen = currentInterjectionIndex >= currentNode.interjections.length
   const nextInterjection = currentNode.interjections[currentInterjectionIndex]
+  const activeSpeaker = visibleInterjections.length > 0
+    ? visibleInterjections[visibleInterjections.length - 1].speaker
+    : null
 
   useEffect(() => {
     if (!isUserScrolling.current && scrollRef.current) {
@@ -102,6 +152,7 @@ export function DialogueOverlay() {
   return (
     <div style={styles.overlay}>
       <div style={styles.panel}>
+        {activeSpeaker && <SpeakerPortrait speaker={activeSpeaker} />}
 
         <div style={styles.scrollArea} ref={scrollRef} onScroll={handleScroll}>
 
@@ -191,6 +242,7 @@ const styles: Record<string, React.CSSProperties> = {
     zIndex: 10,
   },
   panel: {
+    position: 'relative',
     width: '480px',
     height: '100%',
     display: 'flex',
