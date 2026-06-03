@@ -31,7 +31,8 @@ export interface Skills {
 export type GameMode = 'exploration' | 'dialogue'
 
 export interface LogEntry {
-  type: 'narrative' | 'choice'
+  type: 'narrative' | 'choice' | 'interjection'
+  speaker: string
   text: string
 }
 
@@ -153,9 +154,14 @@ export const useGameStore = create<GameState>()((set) => ({
         currentNodeId: choice.nextNodeId,
         dialogueLog: [
           ...state.dialogueLog,
-          { type: 'narrative', text: node.narrative },
-          { type: 'choice', text: choice.text },
-          ],
+          { type: 'narrative', speaker: 'NARRATOR', text: node.narrative },
+          ...node.interjections.map((i) => ({
+            type: 'interjection' as const,
+            speaker: i.speaker,
+            text: i.text,
+          })),
+          { type: 'choice', speaker: 'YOU', text: choice.text },
+        ],
       }
     }),
 }))

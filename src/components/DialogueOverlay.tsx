@@ -1,6 +1,65 @@
 import { useEffect, useRef } from 'react'
-import { useGameStore } from '../store/gameStore'
+import { useGameStore, LogEntry } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
+
+// Colour the speaker tag by attribute / role
+const SPEAKER_COLORS: Record<string, string> = {
+  NARRATOR:     '#c8a96e',
+  YOU:          '#7a9e7a',
+  // FLESH
+  ENDURANCE:    '#b06060',
+  SCARRING:     '#b06060',
+  HUNGER:       '#b06060',
+  // WIT
+  'DUNGEON LORE': '#6a9eb0',
+  APPRAISAL:    '#6a9eb0',
+  WAYFINDING:   '#6a9eb0',
+  SCAVENGING:   '#6a9eb0',
+  // STATION
+  REPUTATION:   '#9a7ab0',
+  DECEPTION:    '#9a7ab0',
+  SPITE:        '#9a7ab0',
+  // INSTINCT
+  'DANGER SENSE': '#6ab0a0',
+  SUPERSTITION: '#6ab0a0',
+  'THE DEEP':   '#6ab0a0',
+}
+
+function speakerColor(speaker: string): string {
+  return SPEAKER_COLORS[speaker] ?? '#8a8a8a'
+}
+
+function SpeakerTag({ speaker, muted }: { speaker: string; muted: boolean }) {
+  const color = muted ? '#3a3030' : speakerColor(speaker)
+  return (
+    <span style={{ color, fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '0.08em', marginRight: '10px', flexShrink: 0 }}>
+      [{speaker}]
+    </span>
+  )
+}
+
+function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
+  const isChoice = entry.type === 'choice'
+  const textColor = muted
+    ? (isChoice ? '#3a3028' : '#4a4038')
+    : (isChoice ? '#7a9e7a' : '#9a8a6a')
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: isChoice ? '20px' : '10px' }}>
+      <SpeakerTag speaker={entry.speaker} muted={muted} />
+      <span style={{
+        fontFamily: "'Georgia', 'Times New Roman', serif",
+        fontSize: isChoice ? '0.88rem' : '0.93rem',
+        lineHeight: '1.65',
+        color: textColor,
+        fontStyle: isChoice ? 'italic' : 'normal',
+        letterSpacing: '0.01em',
+      }}>
+        {entry.text}
+      </span>
+    </div>
+  )
+}
 
 export function DialogueOverlay() {
   const mode = useGameStore((s) => s.gameMode)
@@ -14,7 +73,6 @@ export function DialogueOverlay() {
 
   const currentNode = dialogueNodes[currentNodeId]
 
-  // Auto-scroll to bottom when log grows, unless user is reading history
   useEffect(() => {
     if (!isUserScrolling.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
@@ -28,9 +86,7 @@ export function DialogueOverlay() {
     if (!atBottom) {
       isUserScrolling.current = true
       if (scrollTimeout.current) clearTimeout(scrollTimeout.current)
-      scrollTimeout.current = setTimeout(() => {
-        isUserScrolling.current = false
-      }, 2000)
+      scrollTimeout.current = setTimeout(() => { isUserScrolling.current = false }, 2000)
     } else {
       isUserScrolling.current = false
     }
@@ -42,27 +98,33 @@ export function DialogueOverlay() {
     <div style={styles.overlay}>
       <div style={styles.panel}>
 
-        {/* Scrollable history + current narrative */}
         <div style={styles.scrollArea} ref={scrollRef} onScroll={handleScroll}>
-          {/* Past log entries */}
+
+          {/* History */}
           {dialogueLog.map((entry, i) => (
-            <p
-              key={i}
-              style={entry.type === 'narrative' ? styles.logNarrative : styles.logChoice}
-            >
-              {entry.type === 'choice' && <span style={styles.choiceArrow}>› </span>}
-              {entry.text}
-            </p>
+            <LogLine key={i} entry={entry} muted={true} />
           ))}
 
-          {/* Divider between history and current node */}
+          {/* Divider between history and current */}
           {dialogueLog.length > 0 && <div style={styles.divider} />}
 
-          {/* Current narrative — always visible at bottom of scroll area */}
-          <p style={styles.currentNarrative}>{currentNode.narrative}</p>
+          {/* Current narrator line */}
+          <LogLine
+            entry={{ type: 'narrative', speaker: 'NARRATOR', text: currentNode.narrative }}
+            muted={false}
+          />
+
+          {/* Current skill interjections */}
+          {currentNode.interjections.map((inj, i) => (
+            <LogLine
+              key={i}
+              entry={{ type: 'interjection', speaker: inj.speaker, text: inj.text }}
+              muted={false}
+            />
+          ))}
         </div>
 
-        {/* Choices pinned at the bottom */}
+        {/* Choices pinned at bottom */}
         <div style={styles.choicesArea}>
           <div style={styles.fadeEdge} />
           <div style={styles.choices}>
@@ -113,52 +175,23 @@ const styles: Record<string, React.CSSProperties> = {
   scrollArea: {
     flex: 1,
     overflowY: 'scroll',
-    padding: '36px 48px 16px',
+    padding: '32px 32px 16px',
     scrollbarWidth: 'thin',
     scrollbarColor: '#3a3020 #0d0d0d',
   },
-  logNarrative: {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: '0.95rem',
-    lineHeight: '1.7',
-    color: '#5a4a30',
-    margin: '0 0 16px 0',
-    letterSpacing: '0.01em',
-  },
-  logChoice: {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: '0.88rem',
-    lineHeight: '1.5',
-    color: '#4a3a22',
-    margin: '0 0 20px 0',
-    fontStyle: 'italic',
-    letterSpacing: '0.02em',
-  },
-  choiceArrow: {
-    fontStyle: 'normal',
-    color: '#3a2e18',
-  },
   divider: {
     borderTop: '1px solid #2a2010',
-    margin: '8px 0 24px',
-  },
-  currentNarrative: {
-    fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: '1.05rem',
-    lineHeight: '1.75',
-    color: '#c8a96e',
-    margin: '0 0 8px 0',
-    letterSpacing: '0.01em',
+    margin: '12px 0 20px',
   },
   choicesArea: {
     position: 'relative',
-    padding: '0 48px 32px',
+    padding: '0 32px 28px',
     flexShrink: 0,
   },
   fadeEdge: {
     height: '32px',
     background: 'linear-gradient(to bottom, transparent, #0d0d0d)',
-    marginBottom: '12px',
+    marginBottom: '10px',
     pointerEvents: 'none',
   },
   choices: {
@@ -171,8 +204,8 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #5a4a2a',
     color: '#a88a50',
     fontFamily: "'Georgia', 'Times New Roman', serif",
-    fontSize: '0.95rem',
-    padding: '12px 18px',
+    fontSize: '0.92rem',
+    padding: '11px 16px',
     cursor: 'pointer',
     textAlign: 'left',
     letterSpacing: '0.02em',
