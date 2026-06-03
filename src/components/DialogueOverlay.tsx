@@ -46,7 +46,8 @@ function CheckEntry({ entry }: { entry: LogEntry }) {
   const [hovered, setHovered] = useState(false)
   const outcome = entry.checkOutcome!
   const rolls = entry.checkRolls!
-  const color = CHECK_COLORS[outcome]
+  const displayOutcome = entry.passive && outcome === 'passed_stressed' ? 'passed' : outcome
+  const color = CHECK_COLORS[displayOutcome]
   const tag = entry.passive ? '[PASSIVE]' : '[SKILL CHECK]'
 
   return (
