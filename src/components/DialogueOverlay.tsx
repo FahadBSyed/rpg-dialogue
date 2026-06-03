@@ -64,7 +64,9 @@ function LogLine({ entry, muted }: { entry: LogEntry; muted: boolean }) {
 export function DialogueOverlay() {
   const mode = useGameStore((s) => s.gameMode)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
+  const currentInterjectionIndex = useGameStore((s) => s.currentInterjectionIndex)
   const dialogueLog = useGameStore((s) => s.dialogueLog)
+  const advanceInterjection = useGameStore((s) => s.advanceInterjection)
   const chooseOption = useGameStore((s) => s.chooseOption)
 
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -72,6 +74,9 @@ export function DialogueOverlay() {
   const scrollTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentNode = dialogueNodes[currentNodeId]
+  const visibleInterjections = currentNode.interjections.slice(0, currentInterjectionIndex)
+  const allInterjectionsSeen = currentInterjectionIndex >= currentNode.interjections.length
+  const nextInterjection = currentNode.interjections[currentInterjectionIndex]
 
   useEffect(() => {
     if (!isUserScrolling.current && scrollRef.current) {
@@ -114,8 +119,8 @@ export function DialogueOverlay() {
             muted={false}
           />
 
-          {/* Current skill interjections */}
-          {currentNode.interjections.map((inj, i) => (
+          {/* Interjections revealed so far this node */}
+          {visibleInterjections.map((inj, i) => (
             <LogLine
               key={i}
               entry={{ type: 'interjection', speaker: inj.speaker, text: inj.text }}
@@ -124,27 +129,49 @@ export function DialogueOverlay() {
           ))}
         </div>
 
-        {/* Choices pinned at bottom */}
+        {/* Choices / continue pinned at bottom */}
         <div style={styles.choicesArea}>
           <div style={styles.fadeEdge} />
           <div style={styles.choices}>
-            {currentNode.choices.map((choice, i) => (
+            {!allInterjectionsSeen ? (
+              /* Still have interjections to reveal — show speaker hint + ... */
               <button
-                key={i}
-                style={styles.choiceButton}
+                style={styles.continueButton}
                 onMouseEnter={(e) => {
-                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#a88a50'
-                  ;(e.currentTarget as HTMLButtonElement).style.color = '#c8a96e'
+                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = speakerColor(nextInterjection.speaker)
+                  ;(e.currentTarget as HTMLButtonElement).style.color = speakerColor(nextInterjection.speaker)
                 }}
                 onMouseLeave={(e) => {
-                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#5a4a2a'
-                  ;(e.currentTarget as HTMLButtonElement).style.color = '#a88a50'
+                  ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3020'
+                  ;(e.currentTarget as HTMLButtonElement).style.color = '#5a5040'
                 }}
-                onClick={() => chooseOption(i)}
+                onClick={advanceInterjection}
               >
-                {choice.text}
+                <span style={{ color: speakerColor(nextInterjection.speaker), fontFamily: 'monospace', fontSize: '0.75rem', marginRight: '10px' }}>
+                  [{nextInterjection.speaker}]
+                </span>
+                …
               </button>
-            ))}
+            ) : (
+              /* All interjections seen — show story choices */
+              currentNode.choices.map((choice, i) => (
+                <button
+                  key={i}
+                  style={styles.choiceButton}
+                  onMouseEnter={(e) => {
+                    ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#a88a50'
+                    ;(e.currentTarget as HTMLButtonElement).style.color = '#c8a96e'
+                  }}
+                  onMouseLeave={(e) => {
+                    ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#5a4a2a'
+                    ;(e.currentTarget as HTMLButtonElement).style.color = '#a88a50'
+                  }}
+                  onClick={() => chooseOption(i)}
+                >
+                  {choice.text}
+                </button>
+              ))
+            )}
           </div>
         </div>
 
@@ -198,6 +225,19 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
+  },
+  continueButton: {
+    background: 'transparent',
+    border: '1px solid #3a3020',
+    color: '#5a5040',
+    fontFamily: "'Georgia', 'Times New Roman', serif",
+    fontSize: '1rem',
+    padding: '10px 16px',
+    cursor: 'pointer',
+    textAlign: 'left' as const,
+    letterSpacing: '0.08em',
+    borderRadius: 0,
+    transition: 'border-color 0.15s, color 0.15s',
   },
   choiceButton: {
     background: 'transparent',

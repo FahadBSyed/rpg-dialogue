@@ -40,8 +40,10 @@ interface GameState {
   gameMode: GameMode
   skills: Skills
   currentNodeId: string
+  currentInterjectionIndex: number
   dialogueLog: LogEntry[]
   setMode: (mode: GameMode) => void
+  advanceInterjection: () => void
   chooseOption: (choiceIndex: number) => void
 }
 
@@ -142,9 +144,15 @@ export const useGameStore = create<GameState>()((set) => ({
   },
 
   currentNodeId: 'start',
+  currentInterjectionIndex: 0,
   dialogueLog: [],
 
   setMode: (mode) => set({ gameMode: mode }),
+
+  advanceInterjection: () =>
+    set((state) => ({
+      currentInterjectionIndex: state.currentInterjectionIndex + 1,
+    })),
 
   chooseOption: (choiceIndex) =>
     set((state) => {
@@ -152,6 +160,7 @@ export const useGameStore = create<GameState>()((set) => ({
       const choice = node.choices[choiceIndex]
       return {
         currentNodeId: choice.nextNodeId,
+        currentInterjectionIndex: 0,
         dialogueLog: [
           ...state.dialogueLog,
           { type: 'narrative', speaker: 'NARRATOR', text: node.narrative },
