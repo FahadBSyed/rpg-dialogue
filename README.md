@@ -204,3 +204,117 @@ All sound is synthesised procedurally via the Web Audio API. No audio assets. Ea
 | Check stress | Dissonant sawtooth clash |
 
 The sounds are functional feedback, not decoration. Stress is audibly wrong. The Deep sounds like the dungeon. That's the goal.
+
+---
+
+## 5. Dialogue Data Format
+
+Nodes, choices, and interjections are all defined in `dialogueData.ts`. The key types:
+
+### Nodes
+
+```ts
+interface DialogueNode {
+  id: string
+  narrative: string
+  passiveChecks?: PassiveCheckDef[]   // one per skill; all fire when the node loads
+  interjections: Interjection[]
+  choices: DialogueChoice[]
+}
+```
+
+`passiveChecks` is an array — a node can fire multiple passive voices at once. Each check resolves independently; on success, its `successInterjection` is prepended to the interjection queue and its `successBonus` is added to the bonus pool.
+
+### Choices
+
+```ts
+interface DialogueChoice {
+  id?: string           // stable handle for referring to this link (e.g. "goblin_start/sneak")
+  text: string
+  nextNodeId: string
+  check?: { skillKey: SkillKey; failNodeId?: string }
+  requiresUnlock?: string   // hidden until a matching unlock_choice bonus is pending
+}
+```
+
+`id` is optional but should be set on any choice you want to refer to in conversation. The convention is `node/choice-id` (e.g. `goblin_spotted/bolt`).
+
+`requiresUnlock` gates a choice behind an `unlock_choice` bonus. The choice is invisible until the bonus exists; taking the choice consumes the bonus.
+
+### Interjections
+
+```ts
+interface Interjection {
+  id?: string    // optional reference handle; fill in when needed
+  speaker: string
+  text: string
+}
+```
+
+---
+
+## 6. The Goblin Chamber (Current Test Scenario)
+
+Three goblins stand between Fiodor and the onward passage. They haven't seen him. The encounter is built in passes — new approaches are added incrementally rather than all at once.
+
+### Node map
+
+```
+goblin_start  ── passives: Wayfinding (maps room → +die to Danger Sense)
+               │            Scavenging (finds corpse-veil → unlocks /poison)
+               │
+               ├─ sneak   → Danger Sense ──┬─ pass ──→ goblin_slip
+               │                           └─ fail ──→ goblin_spotted
+               │
+               ├─ poison  → Deception ─────┬─ pass ──→ goblin_poison_success   [unlocked only]
+               │            (requires       └─ fail ──→ goblin_poison_caught
+               │             corpse-veil)
+               │
+               └─ observe → goblin_observe ─┬─ sneak  (same Danger Sense check)
+                                            └─ poison (same Deception check, still gated)
+
+goblin_spotted       /bolt → Endurance ─┬─ pass → goblin_escaped
+goblin_poison_caught /bolt → Endurance ─┘         └─ fail → goblin_cornered
+```
+
+### Current passes
+
+| Pass | Approach | Primary check | Support |
+|---|---|---|---|
+| 1 | Sneak past | Danger Sense | Wayfinding passive (+die) |
+| 2 | Poison food | Deception | Scavenging passive (unlock) |
+
+Planned: ambush, terrify, lure-monster, lure-trap, ally/threat/fake-goblin/divide talking gambits, last-stand combat.
+
+### Shared failure terminals
+
+`goblin_spotted` and `goblin_poison_caught` both funnel into the same **bolt** → Endurance check → `goblin_escaped` / `goblin_cornered`. Each has its own framing (tin shard underfoot vs. hand in the meat) but the mechanical branch is shared. New approaches that end in discovery will route here too.
+
+`goblin_cornered` is the designated hook for the future combat pass.
+
+---
+
+## 7. Debug Tools
+
+Three debug tools are available during development. None affect production logic.
+
+### P / F / S — Force check outcome
+
+Press **P**, **F**, or **S** to arm a forced outcome for the next check (pass / fail / stress). The key toggles — press again to cancel. A status label appears bottom-left when a force is armed. The force clears automatically after any check fires (active or passive).
+
+Useful for testing branches that require unlikely dice results: arm **P**, jump to a node, and the passive will resolve however you want.
+
+### `/` — Debug console
+
+Press **`/`** to open a command palette. Currently supported:
+
+| Command | Effect |
+|---|---|
+| `goto <node-id>` | Jump directly to any node |
+
+The console filters matching node ids as you type, showing each id alongside a snippet of its narrative. **↑ / ↓** selects, **Tab** completes, **Enter** jumps, **Esc** closes.
+
+`goto` clears the target node from the resolved-passive registry, so passive checks re-fire on arrival — every jump is a clean entry.
+
+Composing the two tools: `/goto goblin_start` then press **P** to force the Scavenging passive to pass and reveal the poison choice.
+
