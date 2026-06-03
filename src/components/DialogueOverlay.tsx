@@ -82,7 +82,7 @@ export function DialogueOverlay() {
     if (!isUserScrolling.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [dialogueLog])
+  }, [dialogueLog, currentInterjectionIndex])
 
   function handleScroll() {
     const el = scrollRef.current
