@@ -62,6 +62,22 @@ export function CharacterCreation() {
     })
   }
 
+  function randomize() {
+    const pool = [...ALL_SKILLS]
+    // Fisher–Yates shuffle, then take the first five for the five slots.
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[pool[i], pool[j]] = [pool[j], pool[i]]
+    }
+    setSelections({
+      d6_0:  pool[0].key,
+      d6_1:  pool[1].key,
+      d8_0:  pool[2].key,
+      d8_1:  pool[3].key,
+      d10_0: pool[4].key,
+    })
+  }
+
   const groups = [
     { die: 'd6',  slots: ['d6_0', 'd6_1'] as Slot[] },
     { die: 'd8',  slots: ['d8_0', 'd8_1'] as Slot[] },
@@ -108,13 +124,18 @@ export function CharacterCreation() {
           ))}
         </div>
 
-        <button
-          style={{ ...styles.confirmButton, ...(allFilled ? styles.confirmActive : {}) }}
-          disabled={!allFilled}
-          onClick={confirm}
-        >
-          Begin
-        </button>
+        <div style={styles.buttonRow}>
+          <button style={styles.randomButton} onClick={randomize}>
+            Randomize
+          </button>
+          <button
+            style={{ ...styles.confirmButton, ...(allFilled ? styles.confirmActive : {}) }}
+            disabled={!allFilled}
+            onClick={confirm}
+          >
+            Begin
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -196,8 +217,25 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     borderRadius: 0,
   },
+  buttonRow: {
+    display: 'flex',
+    gap: '12px',
+  },
+  randomButton: {
+    flex: '0 0 auto',
+    padding: '13px 20px',
+    backgroundColor: 'transparent',
+    border: '1px solid #3a3020',
+    color: '#8a7040',
+    fontFamily: "'Georgia', serif",
+    fontSize: '0.9rem',
+    letterSpacing: '0.1em',
+    cursor: 'pointer',
+    borderRadius: 0,
+    transition: 'border-color 0.15s, color 0.15s',
+  },
   confirmButton: {
-    width: '100%',
+    flex: 1,
     padding: '13px',
     backgroundColor: 'transparent',
     border: '1px solid #3a3020',
