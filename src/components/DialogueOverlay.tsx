@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useGameStore, LogEntry, ActiveBonus, ActivePenalty, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
 import { playScribble, playSkillChime, playCheckPass } from '../audio/soundManager'
@@ -70,6 +71,8 @@ function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
   penalties: ActivePenalty[]
 }) {
   const [hovered, setHovered] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 })
+  const anchorRef = useRef<HTMLSpanElement>(null)
 
   const sizeUps = bonuses.filter((b) => b.type === 'size_step_up').length
   const sizeDowns = penalties.filter((p) => p.type === 'size_step_down').length
@@ -80,28 +83,28 @@ function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
   const poolChanged = effectivePool !== skill.pool
   const hasModifiers = bonuses.length > 0 || penalties.length > 0
 
-  return (
-    <span
-      style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <span style={{ color, fontFamily: 'monospace', fontSize: '0.72rem', letterSpacing: '0.04em' }}>
-        [{checkName} Check]
-      </span>
-      {hovered && (
-        <div style={{
-          position: 'absolute',
-          bottom: 'calc(100% + 6px)',
-          left: 0,
-          backgroundColor: '#111108',
-          border: `1px solid ${color}44`,
-          padding: '10px 14px',
-          zIndex: 30,
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
-          minWidth: '180px',
-        }}>
+  function handleMouseEnter() {
+    if (anchorRef.current) {
+      const r = anchorRef.current.getBoundingClientRect()
+      setTooltipPos({ top: r.top + window.scrollY, left: r.left + window.scrollX })
+    }
+    setHovered(true)
+  }
+
+  const tooltip = hovered && createPortal(
+    <div style={{
+      position: 'absolute',
+      top: tooltipPos.top - 8,
+      left: tooltipPos.left,
+      transform: 'translateY(-100%)',
+      backgroundColor: '#111108',
+      border: `1px solid ${color}44`,
+      padding: '10px 14px',
+      zIndex: 9999,
+      whiteSpace: 'nowrap',
+      pointerEvents: 'none',
+      minWidth: '180px',
+    }}>
           {/* Effective dice — show base → effective when modifiers exist */}
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: hasModifiers ? '8px' : 0 }}>
             <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#5a4a30' }}>POOL</span>
@@ -142,8 +145,21 @@ function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
               </span>
             </div>
           ))}
-        </div>
-      )}
+    </div>,
+    document.body
+  )
+
+  return (
+    <span
+      ref={anchorRef}
+      style={{ position: 'relative', display: 'inline-block', marginLeft: '8px' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span style={{ color, fontFamily: 'monospace', fontSize: '0.72rem', letterSpacing: '0.04em' }}>
+        [{checkName} Check]
+      </span>
+      {tooltip}
     </span>
   )
 }
