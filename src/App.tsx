@@ -5,6 +5,7 @@ import { CharacterCreation } from './components/CharacterCreation'
 import { DebugControls } from './components/DebugControls'
 import { DebugConsole } from './components/DebugConsole'
 import { DiceRoller } from './components/DiceRoller'
+import { ResultFlash } from './components/ResultFlash'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <DialogueOverlay />
       </div>
       <DiceRoller />
+      <ResultFlash />
       <DebugControls />
       <DebugConsole />
     </div>

@@ -39,3 +39,13 @@ button:focus-visible {
 .skill-flashing {
   animation: skill-stress-flash 1.2s ease-out forwards;
 }
+
+@keyframes result-flash-fade {
+  0%   { opacity: 0; }
+  12%  { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+
+.result-flash {
+  animation: result-flash-fade 0.9s ease-out forwards;
+}
