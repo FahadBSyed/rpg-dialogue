@@ -5,12 +5,12 @@ import { SkillPanel } from './components/SkillPanel'
 function App() {
   return (
     <div style={styles.root}>
+      <div style={styles.sidebar}>
+        <SkillPanel />
+      </div>
       <div style={styles.gameArea}>
         <PhaserGame />
         <DialogueOverlay />
-      </div>
-      <div style={styles.sidebar}>
-        <SkillPanel />
       </div>
     </div>
   )
