@@ -6,6 +6,7 @@ import { DebugControls } from './components/DebugControls'
 import { DebugConsole } from './components/DebugConsole'
 import { DiceRoller } from './components/DiceRoller'
 import { ResultFlash } from './components/ResultFlash'
+import { ScreenShake } from './components/ScreenShake'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
       </div>
       <DiceRoller />
       <ResultFlash />
+      <ScreenShake />
       <DebugControls />
       <DebugConsole />
     </div>
