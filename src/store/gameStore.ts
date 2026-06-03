@@ -193,7 +193,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   },
 
   characterCreated: false,
-  currentNodeId: 'start',
+  currentNodeId: 'goblin_start',
   currentInterjectionIndex: 0,
   dialogueLog: [],
   flashingSkill: null,
