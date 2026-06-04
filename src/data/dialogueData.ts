@@ -359,47 +359,89 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_ambush_success: {
     id: 'goblin_ambush_success',
     narrative:
-      'You move and the room moves with you. The pacing one goes down before he completes his turn — he didn\'t hear you coming, which is the only mercy in it. The other two spin at the sound and find the problem already on top of them. It is over in the time it takes the fire to shift. When the chamber settles, you are standing in it alone.',
+      'You move and the pacing one goes down before he finishes his turn — he didn\'t hear you coming, which is the only mercy in it. The other two spin toward the sound and find you already standing over him. Two left. The odds improved the moment you stepped into the room. They know it too.',
     beats: [
       {
         kind: 'voice',
         speaker: 'DANGER SENSE',
-        text: 'Called it exactly. All three positions, all three responses. You read this room before you walked into it. That\'s the skill — not the hit, the read.',
+        text: 'Called it. Don\'t stop — the other two are reading you right now, deciding whether to charge or scatter. Give them the answer before they finish the question.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'scavenging',
+        successInterjection: {
+          speaker: 'SCAVENGING',
+          text: 'The dead one\'s got a whip coiled at his belt. Reach. You don\'t have reach and they know how to swarm — take it.',
+        },
+        successBonus: {
+          type: 'size_step_up',
+          skillKey: 'endurance',
+          sourceDescription: 'Goblin\'s whip — reach advantage',
+        },
       },
       {
         kind: 'voice',
         speaker: 'ENDURANCE',
-        text: 'Clean. Nothing broken that wasn\'t already broken. Check your hands. Keep moving.',
+        text: 'Two. Think about the next one. The first one\'s already done.',
       },
     ],
     choices: [
-      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_start' },
+      {
+        id: 'fight',
+        text: 'Finish it.',
+        nextNodeId: 'goblin_fight_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+      },
     ],
   },
 
   goblin_ambush_fail: {
     id: 'goblin_ambush_fail',
     narrative:
-      'He moved. Two feet to the left, a half-second earlier than the pattern said, and when you come in fast he\'s looking right at you. The shout goes up before you reach him. The other two are already on their feet. You are in the middle of their floor, the element of surprise spent, and three goblins are looking at the person who just walked into their home swinging.',
+      'He moved. Two feet to the left, a half-second earlier than the circuit said, and when you come in fast he\'s looking right at you. The shout goes up before you reach him. The other two are already on their feet. Three of them, all alert, all between you and the passage.',
     beats: [
       {
         kind: 'voice',
         speaker: 'DANGER SENSE',
-        text: 'He moved. I didn\'t catch it. I should have caught it — that\'s on me. Deal with the room as it is, not as I said it was.',
+        text: 'He moved. I didn\'t catch it — that\'s on me. Three of them now, all awake. The math got worse.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Outnumbered 3 to 1' },
+        ],
       },
       {
         kind: 'voice',
         speaker: 'SCARRING',
-        text: 'Wrong shape again. You know this wrong shape. You\'ve walked out of it before. Do it again.',
+        text: 'Pick the smallest one. Always the smallest one first — they go down fastest and the other two flinch when they see it. Buy yourself a second. Use the second.',
       },
     ],
     choices: [
       {
-        id: 'bolt',
-        text: 'Hit the nearest one and run for the passage.',
+        id: 'fight',
+        text: 'Fight through to the passage.',
         nextNodeId: 'goblin_escaped',
         check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
       },
+    ],
+  },
+
+  goblin_fight_won: {
+    id: 'goblin_fight_won',
+    narrative:
+      'It takes longer than it should and it is not clean. But when the chamber settles there are three goblins down and you are not. The fire crackles on. The bright thing they were arguing over has rolled under the rubble. You stand in the quiet and remember how to breathe.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'There it is. The body held. You can hate me for asking it to later — right now check your hands and keep moving.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Three. And you walked out. Remember that number. It was possible.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_start' },
     ],
   },
 
