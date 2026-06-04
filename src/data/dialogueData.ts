@@ -121,7 +121,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
       {
         id: 'ambush',
-        text: 'Find the opening in their routine and close the distance before they know you\'re there.',
+        text: 'Wait for the pacing one to turn his back. Then hit them before any of them can shout.',
         nextNodeId: 'goblin_ambush_ready',
       },
       {
