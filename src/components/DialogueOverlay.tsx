@@ -101,12 +101,16 @@ function AnimatedText({ text, instant, onDone, onSentenceReveal }: {
 
   return (
     <>
-      {sentences.slice(0, count).map((s, i) => {
-        const animated = snapAt.current === null || i < snapAt.current
+      {sentences.map((s, i) => {
+        const revealed = i < count
+        const animated = revealed && (snapAt.current === null || i < snapAt.current)
         return (
           <span
             key={i}
-            style={{ animation: animated ? 'sentence-fade-in 0.18s ease-in forwards' : 'none' }}
+            style={{
+              opacity: revealed ? 1 : 0,
+              animation: animated ? 'sentence-fade-in 0.18s ease-in forwards' : 'none',
+            }}
           >
             {s}{i < sentences.length - 1 ? ' ' : ''}
           </span>
