@@ -353,6 +353,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_ambush_success',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_ambush_fail' },
       },
+      {
+        id: 'wait',
+        text: 'Wait. Not yet.',
+        nextNodeId: 'goblin_start',
+      },
     ],
   },
 
@@ -464,6 +469,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
+      {
+        id: 'back',
+        text: 'Not like this. Step back into the dark.',
+        nextNodeId: 'goblin_start',
+      },
       {
         id: 'press',
         text: 'Don\'t stop. Keep walking. Make it real.',
