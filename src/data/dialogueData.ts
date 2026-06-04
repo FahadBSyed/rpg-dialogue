@@ -108,13 +108,6 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
       {
-        id: 'poison',
-        text: 'Creep to the cookfire and work the corpse-veil into the meat.',
-        nextNodeId: 'goblin_poison_success',
-        check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
-        requiresUnlock: 'poison',
-      },
-      {
         id: 'observe',
         text: 'Stay in the dark and study them a while longer.',
         nextNodeId: 'goblin_observe',
@@ -160,13 +153,6 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
       {
-        id: 'poison',
-        text: 'Creep to the cookfire and work the corpse-veil into the meat.',
-        nextNodeId: 'goblin_poison_success',
-        check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
-        requiresUnlock: 'poison',
-      },
-      {
         id: 'ambush',
         text: 'You\'ve seen enough. Find the gap and close it before they know you\'re moving.',
         nextNodeId: 'goblin_ambush_ready',
@@ -182,21 +168,28 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_slip: {
     id: 'goblin_slip',
     narrative:
-      'You move when the pacing goblin turns for the wall. Three steps and you fold into the shadow of the rubble pile, one breath held against the stone. The arguing pair never look up. When he turns again you take the last of the open floor in a low, even glide and slip into the dark of the far passage. Behind you the fire crackles, the argument goes on, and not one of the three will ever know you passed through their house.',
+      'You move when the pacing goblin turns for the wall. Three steps and you fold into the shadow of the rubble pile, one breath held against the stone. The arguing pair never look up. When he turns again you take the last of the open floor in a low, even glide and press yourself into the mouth of the far passage, back flat against cold stone. The fire is three seconds behind you. The chamber is still. None of them have looked up.',
     beats: [
       {
         kind: 'voice',
         speaker: 'DANGER SENSE',
-        text: 'Good. Now keep moving. Put a corner between you and them before you let yourself feel anything about it.',
+        text: 'Clear. They don\'t know you\'re here. You could be gone in ten seconds, or you could still use that.',
       },
       {
         kind: 'voice',
         speaker: 'SCARRING',
-        text: 'There. You can take the body back now. The knee can complain all it likes — quietly, and a long way from here.',
+        text: 'You\'re past them. Whatever you do next, you do it from a position they don\'t know about. That\'s worth something.',
       },
     ],
     choices: [
-      { id: 'continue', text: 'Press on into the dark.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Press on. Leave them to it.', nextNodeId: 'goblin_start' },
+      {
+        id: 'poison',
+        text: 'Go back. The fire is right there — they\'ll never know you were behind them.',
+        nextNodeId: 'goblin_poison_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
+        requiresUnlock: 'poison',
+      },
     ],
   },
 
