@@ -653,12 +653,14 @@ const styles: Record<string, React.CSSProperties> = {
   choicesArea: {
     height: '33.333%',
     borderTop: '1px solid #2a2010',
-    padding: '20px 32px 0',
+    padding: '20px 32px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
     flexShrink: 0,
-    overflow: 'hidden',
+    overflowY: 'auto',
+    scrollbarWidth: 'thin',
+    scrollbarColor: '#3a3020 #0d0d0d',
   },
   fadeEdge: {
     display: 'none',
