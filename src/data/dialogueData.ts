@@ -119,6 +119,16 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Stay in the dark and study them a while longer.',
         nextNodeId: 'goblin_observe',
       },
+      {
+        id: 'ambush',
+        text: 'Find the opening in their routine and close the distance before they know you\'re there.',
+        nextNodeId: 'goblin_ambush_ready',
+      },
+      {
+        id: 'terrify',
+        text: 'Step into the firelight. All the way. Make them look at what\'s walking toward them.',
+        nextNodeId: 'goblin_terrify_ready',
+      },
     ],
   },
 
@@ -155,6 +165,16 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_poison_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
         requiresUnlock: 'poison',
+      },
+      {
+        id: 'ambush',
+        text: 'You\'ve seen enough. Find the gap and close it before they know you\'re moving.',
+        nextNodeId: 'goblin_ambush_ready',
+      },
+      {
+        id: 'terrify',
+        text: 'Step out of the dark. Make them look at you.',
+        nextNodeId: 'goblin_terrify_ready',
       },
     ],
   },
@@ -312,6 +332,151 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  // ── Ambush path ─────────────────────────────────────────────────────────────
+
+  goblin_ambush_ready: {
+    id: 'goblin_ambush_ready',
+    narrative:
+      'You\'ve been watching long enough. The pacing one is at the far end of his circuit, back to you for four seconds, maybe five. The arguing pair haven\'t looked up in two minutes. You know where all three of them are. This is the moment — not a better one, not a cleaner one. This one.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Three. You\'ve handled three. Don\'t think about three. Think about the first one.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'The hesitation is what gets you killed. You learned that. Remember where you learned that.',
+      },
+    ],
+    choices: [
+      {
+        id: 'strike',
+        text: 'Go.',
+        nextNodeId: 'goblin_ambush_success',
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_ambush_fail' },
+      },
+    ],
+  },
+
+  goblin_ambush_success: {
+    id: 'goblin_ambush_success',
+    narrative:
+      'You move and the room moves with you. The pacing one goes down before he completes his turn — he didn\'t hear you coming, which is the only mercy in it. The other two spin at the sound and find the problem already on top of them. It is over in the time it takes the fire to shift. When the chamber settles, you are standing in it alone.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Called it exactly. All three positions, all three responses. You read this room before you walked into it. That\'s the skill — not the hit, the read.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Clean. Nothing broken that wasn\'t already broken. Check your hands. Keep moving.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_ambush_fail: {
+    id: 'goblin_ambush_fail',
+    narrative:
+      'He moved. Two feet to the left, a half-second earlier than the pattern said, and when you come in fast he\'s looking right at you. The shout goes up before you reach him. The other two are already on their feet. You are in the middle of their floor, the element of surprise spent, and three goblins are looking at the person who just walked into their home swinging.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'He moved. I didn\'t catch it. I should have caught it — that\'s on me. Deal with the room as it is, not as I said it was.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Wrong shape again. You know this wrong shape. You\'ve walked out of it before. Do it again.',
+      },
+    ],
+    choices: [
+      {
+        id: 'bolt',
+        text: 'Hit the nearest one and run for the passage.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+      },
+    ],
+  },
+
+  // ── Terrify path ─────────────────────────────────────────────────────────────
+
+  goblin_terrify_ready: {
+    id: 'goblin_terrify_ready',
+    narrative:
+      'You step out of the dark and into the firelight. Upright, unhurried, the way something walks when it expects to be the most dangerous thing in the room. The pacing goblin stops mid-circuit. The arguing pair look up. The bright thing drops, forgotten. For a moment the chamber holds its breath.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Show them. SHOW them what they\'re dealing with.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Don\'t slow down. Don\'t flinch. If the body wavers the whole thing falls apart — you are the weight at the end of this and you do not stop.',
+      },
+    ],
+    choices: [
+      {
+        id: 'press',
+        text: 'Don\'t stop. Keep walking. Make it real.',
+        nextNodeId: 'goblin_terrify_success',
+        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
+      },
+    ],
+  },
+
+  goblin_terrify_success: {
+    id: 'goblin_terrify_success',
+    narrative:
+      'Something registers. Maybe it\'s the name — you\'ve moved through these tunnels long enough to leave marks, and the things that live here learn to read them. Maybe it\'s the posture, the eyes, the fact that you don\'t look like someone who expects to lose. One of them breaks first. Then the other two follow. The chamber empties toward the far passage in a shrieking scatter. The pacing one is last. He looks back once. You hold his gaze. He goes.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'They knew. Maybe not the name — the shape of the thing. You\'ve made yourself into something that registers down here. That was the work of a long time. It just paid out.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Good. Let them carry it. Every creature in these tunnels hears what just happened here. That\'s how you build a wall nobody can see.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Walk through.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_terrify_fail: {
+    id: 'goblin_terrify_fail',
+    narrative:
+      'They don\'t break. The pacing one takes a step toward you. The arguing pair close together and then spread apart in a practiced way that says: this isn\'t the first time something bigger walked in and tried this. One of them grins. It\'s the kind of grin that lives in dungeons because everything that wore it survived long enough to grow teeth.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'They didn\'t run. Fine. Do it the other way.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'Read it wrong. They don\'t know the name, or they don\'t care. You\'ve been down here long enough to matter — just not to them, not today.',
+      },
+    ],
+    choices: [
+      { id: 'fight', text: 'Then we do it the hard way.', nextNodeId: 'goblin_cornered' },
     ],
   },
 }
