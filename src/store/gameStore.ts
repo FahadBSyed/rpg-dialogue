@@ -97,6 +97,10 @@ interface GameState {
   flashingSkill: SkillKey | null
   pendingBonuses: ActiveBonus[]
   pendingPenalties: ActivePenalty[]
+  // Cache of passive check outcomes keyed by "nodeId:beatIndex". Populated on
+  // first roll; replayed on revisit so the player always sees the same result
+  // and penalties are never double-applied.
+  passiveCache: Record<string, { outcome: CheckOutcome; rolls: number[]; diceSize: DiceSize }>
   debugForceOutcome: CheckOutcome | null
   debugForcePassiveOutcome: CheckOutcome | null
   pendingRoll: PendingRoll | null
@@ -262,6 +266,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   flashingSkill: null,
   pendingBonuses: [],
   pendingPenalties: [],
+  passiveCache: {},
   debugForceOutcome: null,
   debugForcePassiveOutcome: null,
   pendingRoll: null,
@@ -293,6 +298,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         revealedBeats: [],
         pendingBonuses: [],
         pendingPenalties: [],
+        passiveCache: {},
       }
     }),
 
@@ -324,6 +330,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const force = state.debugForcePassiveOutcome
     let forceConsumed = false
     let revealedSomething = false
+    const newPassiveCache: GameState['passiveCache'] = {}
 
     while (cursor < beats.length && !revealedSomething) {
       const beat = beats[cursor]
@@ -336,41 +343,56 @@ export const useGameStore = create<GameState>()((set, get) => ({
         revealedSomething = true
       } else {
         const skill = state.skills[beat.skillKey]
+        const cacheKey = `${state.currentNodeId}:${cursor}`
+        const cached = state.passiveCache[cacheKey]
+        const isReplay = !!cached
 
-        // Auto-pass if a size_step_up bonus for the guaranteedBy skill is pending
-        // (the player already did the reconnaissance work).
-        let guaranteed = false
-        if (beat.guaranteedBy) {
-          const gIdx = bonuses.findIndex(
-            (b) => b.type === 'size_step_up' && b.skillKey === beat.guaranteedBy
-          )
-          if (gIdx >= 0) {
-            guaranteed = true
-            bonuses = bonuses.filter((_, i) => i !== gIdx)
+        let rolls: number[]
+        let effectiveSize: DiceSize
+
+        if (cached) {
+          // Replay the same result — don't re-roll, don't re-apply effects.
+          rolls = cached.rolls
+          effectiveSize = cached.diceSize
+        } else {
+          // Auto-pass if a size_step_up bonus for the guaranteedBy skill is pending.
+          let guaranteed = false
+          if (beat.guaranteedBy) {
+            const gIdx = bonuses.findIndex(
+              (b) => b.type === 'size_step_up' && b.skillKey === beat.guaranteedBy
+            )
+            if (gIdx >= 0) {
+              guaranteed = true
+              bonuses = bonuses.filter((_, i) => i !== gIdx)
+            }
           }
+
+          // Consume a pending size_step_up bonus for this passive skill if present.
+          const sizeUpIdx = bonuses.findIndex(
+            (b) => b.type === 'size_step_up' && b.skillKey === beat.skillKey
+          )
+          effectiveSize = skill.size
+          if (sizeUpIdx >= 0) {
+            effectiveSize = stepUpSize(skill.size)
+            bonuses = bonuses.filter((_, i) => i !== sizeUpIdx)
+          }
+
+          const size = parseInt(effectiveSize.slice(1))
+          const forceThis = force && !forceConsumed ? force : null
+          if (forceThis) forceConsumed = true
+          rolls = guaranteed
+            ? forcedRolls(skill.pool, size, 'passed')
+            : forceThis
+            ? forcedRolls(skill.pool, size, forceThis)
+            : rollDice(skill.pool, size)
         }
 
-        // Consume a pending size_step_up bonus for this passive skill if present
-        const sizeUpIdx = bonuses.findIndex(
-          (b) => b.type === 'size_step_up' && b.skillKey === beat.skillKey
-        )
-        let effectiveSize = skill.size
-        if (sizeUpIdx >= 0) {
-          effectiveSize = stepUpSize(skill.size)
-          bonuses = bonuses.filter((_, i) => i !== sizeUpIdx)
+        const passed = !rolls.some((r) => r === 1)
+        const outcome: CheckOutcome = passed ? 'passed' : 'failed'
+        if (!cached) {
+          newPassiveCache[cacheKey] = { outcome, rolls, diceSize: effectiveSize }
         }
 
-        const size = parseInt(effectiveSize.slice(1))
-        const forceThis = force && !forceConsumed ? force : null
-        if (forceThis) forceConsumed = true
-        // For silent-pass passives (no successInterjection), treat a forced
-        // outcome as a noop on the success path since there's nothing to show.
-        const rolls = guaranteed
-          ? forcedRolls(skill.pool, size, 'passed')
-          : forceThis
-          ? forcedRolls(skill.pool, size, forceThis)
-          : rollDice(skill.pool, size)
-        const passed = guaranteed || !rolls.some((r) => r === 1)
         cursor++
         if (passed && beat.successInterjection) {
           revealed.push({
@@ -387,13 +409,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
             speaker: beat.successInterjection.speaker,
             text: beat.successInterjection.text,
           })
-          if (beat.successBonuses?.length) {
+          if (!isReplay && beat.successBonuses?.length) {
             bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
           }
           revealedSomething = true
         } else if (passed) {
-          // Silent pass — apply bonuses without showing anything, continue loop.
-          if (beat.successBonuses?.length) {
+          // Silent pass — apply bonuses only on the first roll, continue loop.
+          if (!isReplay && beat.successBonuses?.length) {
             bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
           }
         } else if (beat.failInterjection) {
@@ -411,7 +433,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
             speaker: beat.failInterjection.speaker,
             text: beat.failInterjection.text,
           })
-          if (beat.failPenalties?.length) {
+          if (!isReplay && beat.failPenalties?.length) {
             penalties = [...penalties, ...beat.failPenalties.map((p) => ({ ...p, id: newPenaltyId() }))]
           }
           revealedSomething = true
@@ -425,6 +447,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       revealedBeats: revealed,
       pendingBonuses: bonuses,
       pendingPenalties: penalties,
+      passiveCache: { ...state.passiveCache, ...newPassiveCache },
       ...(forceConsumed ? { debugForcePassiveOutcome: null } : {}),
     })
   },
