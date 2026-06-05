@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGameStore, LogEntry, ActiveBonus, ActivePenalty, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
@@ -43,32 +43,28 @@ const CHECK_LABELS = {
   failed:          'FAILED',
 }
 
-// Split prose text into sentence-sized chunks for animated reveal.
-function splitSentences(text: string): string[] {
-  const segments: string[] = []
-  const re = /[^.!?]*[.!?]+(?=\s|$)/g
-  let last = 0
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    segments.push(m[0].trim())
-    last = re.lastIndex
-  }
-  if (last < text.length) {
-    const tail = text.slice(last).trim()
-    if (tail) segments.push(tail)
-  }
-  return segments.length > 0 ? segments : [text]
+// Split prose into word + whitespace tokens, preserving the whitespace so the
+// text reflows exactly as normal — we render every token and then measure where
+// the browser actually wrapped it, to animate one *visual* line at a time.
+function tokenize(text: string): string[] {
+  return text.split(/(\s+)/).filter((t) => t.length > 0)
 }
 
-function AnimatedText({ text, instant, onDone, onSentenceReveal }: {
+const WS = /^\s+$/
+
+function AnimatedText({ text, instant, onDone, onLineReveal }: {
   text: string
   instant: boolean
   onDone?: () => void
-  onSentenceReveal?: () => void
+  onLineReveal?: () => void
 }) {
-  const sentences = useMemo(() => splitSentences(text), [text])
-  const [count, setCount] = useState(instant ? sentences.length : 0)
-  // Track the count at which a skip was triggered so new spans appear without animation
+  const tokens = useMemo(() => tokenize(text), [text])
+  const wordRefs = useRef<(HTMLSpanElement | null)[]>([])
+  // Visual line index per token, computed after layout. Null until measured.
+  const [tokenLine, setTokenLine] = useState<number[] | null>(null)
+  const [totalLines, setTotalLines] = useState(0)
+  const [count, setCount] = useState(0)
+  // Line count at which a skip happened — lines beyond it appear without fade.
   const snapAt = useRef<number | null>(instant ? 0 : null)
   const doneCalled = useRef(false)
 
@@ -76,43 +72,68 @@ function AnimatedText({ text, instant, onDone, onSentenceReveal }: {
     if (!doneCalled.current) { doneCalled.current = true; onDone?.() }
   }
 
-  // Snap when instant becomes true mid-animation
+  // After layout, group tokens into visual lines by their vertical position.
+  useLayoutEffect(() => {
+    const map: number[] = []
+    let line = -1
+    let lastTop: number | null = null
+    for (let i = 0; i < tokens.length; i++) {
+      if (WS.test(tokens[i])) {
+        // Whitespace rides with the line it follows (it's invisible anyway).
+        map[i] = line < 0 ? 0 : line
+        continue
+      }
+      const el = wordRefs.current[i]
+      if (!el) { map[i] = line < 0 ? 0 : line; continue }
+      const top = el.offsetTop
+      if (lastTop === null || top > lastTop + 1) { line++; lastTop = top }
+      map[i] = line
+    }
+    setTokenLine(map)
+    setTotalLines(line + 1)
+    if (instant) setCount(line + 1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text])
+
+  // Snap to fully revealed when instant becomes true mid-animation
   useEffect(() => {
     if (instant && snapAt.current === null) {
       snapAt.current = count
-      setCount(sentences.length)
+      setCount(totalLines)
       done()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instant])
 
-  // Reveal one sentence at a time
+  // Reveal one visual line at a time, once measured
   useEffect(() => {
-    if (instant) return
-    if (count >= sentences.length) { done(); return }
+    if (instant || tokenLine === null) return
+    if (count >= totalLines) { done(); return }
     const delay = count === 0 ? 0 : 280
     const t = setTimeout(() => {
-      onSentenceReveal?.()
+      onLineReveal?.()
       setCount((c) => c + 1)
     }, delay)
     return () => clearTimeout(t)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [count, instant, sentences.length])
+  }, [count, instant, totalLines, tokenLine])
 
   return (
     <>
-      {sentences.map((s, i) => {
-        const revealed = i < count
-        const animated = revealed && (snapAt.current === null || i < snapAt.current)
+      {tokens.map((tok, i) => {
+        const line = tokenLine ? tokenLine[i] : null
+        const revealed = line !== null && line < count
+        const animated = revealed && (snapAt.current === null || line! < snapAt.current)
         return (
           <span
             key={i}
+            ref={(el) => { wordRefs.current[i] = el }}
             style={{
               opacity: revealed ? 1 : 0,
               animation: animated ? 'sentence-fade-in 0.18s ease-in forwards' : 'none',
             }}
           >
-            {s}{i < sentences.length - 1 ? ' ' : ''}
+            {tok}
           </span>
         )
       })}
@@ -386,7 +407,7 @@ function LogLine({ entry, muted, instant = true, onDone }: {
           text={entry.text}
           instant={instant}
           onDone={onDone}
-          onSentenceReveal={muted ? undefined : playScribbleSoft}
+          onLineReveal={muted ? undefined : playScribbleSoft}
         />
       </span>
     </div>
