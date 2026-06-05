@@ -1608,7 +1608,56 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
+      {
+        id: 'words',
+        text: 'The silence didn\'t land. Fill it — change the story before it finishes hardening.',
+        nextNodeId: 'goblin_talk_desperate',
+      },
       { id: 'fight', text: 'Then we do it the hard way.', nextNodeId: 'goblin_cornered' },
+    ],
+  },
+
+  // Fallback from a failed wordless attempt: you can still talk, but you start
+  // in the hole the silence dug. They've already priced your menace at zero, so
+  // the spoken pitch enters mid-collapse with a Deception penalty that travels
+  // into the check at goblin_talk_close. Reachable only from goblin_terrify_fail.
+  goblin_talk_desperate: {
+    id: 'goblin_talk_desperate',
+    narrative:
+      'So you talk. You change tactics in the open air, mid-breath, the silent thing folding into a speaking thing right in front of them — and they watch you do it. That\'s the problem. They watched the strong silent thing fail to be frightening, and now the same thing is talking, which means the talking is the second attempt, and everyone in the room can count to two. You are selling danger to a room that just watched the danger not show up.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Oh, NOW it\'s got words. Now. Didn\'t have them when it was doing the big quiet stare, did it, but the stare didn\'t take so out come the words. That\'s not a dangerous thing, Grit. That\'s a thing trying its second idea.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Go on, then. Second idea. Let\'s hear it. Quick, though — I was nearly finished deciding.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'This is uphill and the hill is your own making. They\'ve already weighed your menace and written down nothing — every word now has to first undo that, then do its own work. It can still be done. But you stripped your own leverage off before you opened your mouth. There is exactly one way through: find GRIT, one flat specific thing, no flourish. He\'s the only one who hasn\'t fully closed the ledger.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'They watched the silence fail — your menace is already priced at zero' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'You know this feeling — the scramble after the strong move didn\'t land, talking faster because the first thing didn\'t work. It almost never works either. Almost. Slow down. Make the almost count.',
+      },
+    ],
+    choices: [
+      {
+        id: 'recover',
+        text: 'Find GRIT\'s eyes. One thing, flat and specific. Undo the silence and replace it.',
+        nextNodeId: 'goblin_talk_close',
+      },
     ],
   },
 
