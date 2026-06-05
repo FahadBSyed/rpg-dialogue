@@ -1718,24 +1718,24 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_threat_fail: {
     id: 'goblin_threat_fail',
     narrative:
-      'You talk — and you hear it go thin in your own mouth before you\'re halfway through. Maybe it\'s a tremor you didn\'t catch in time. Maybe you oversold it, reached for one detail too many and they felt the reach. Goblins live in a world made entirely of other things\' threats; they can hear a real one the way you can hear your own name. This isn\'t one. The small one starts to laugh — a nasty, relieved little sound — and the others pick it up, and the laughter is worse than any blade, because it means the selling is over and the only thing left in the room is what\'s actually true.',
+      'The silence runs out and GRIT is still standing there. He tilts his head, a small, considered movement, the way something moves when it\'s finished thinking and doesn\'t like the answer. He looked at everything you gave him and he weighed it and the scales came up wrong. NIM makes a sound — satisfied and small, the sound of a thing that was right about something and is now collecting on it. They spread wide.',
     beats: [
-      {
-        kind: 'voice',
-        speaker: 'NIM',
-        external: true,
-        text: 'Listen to it! "Things that corner me" — WE cornered YOU, you long stupid lamp-post, that\'s — it\'s words, Grit, it\'s only words, it hasn\'t got a single thing behind them—',
-      },
       {
         kind: 'voice',
         speaker: 'GRIT',
         external: true,
-        text: 'Maybe. Maybe not. Doesn\'t matter now — the words stopped. Words always stop. Then we get to see what was holding them up. Fan out. Find out.',
+        text: 'Good talk. Meant some of that, I think. Didn\'t mean enough.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Called it. Called it from the first word. Get it before it remembers it should\'ve run.',
       },
       {
         kind: 'voice',
         speaker: 'DECEPTION',
-        text: 'Too much. You reached for the one detail too many and the weight of it cracked the floor. A lie this size has to be carried lighter than the truth, not heavier — and you carried it like it mattered. Nothing left to sell. Don\'t try to patch it; a patch now just shows them the hole.',
+        text: 'He ran the numbers and came up short. Not by much — you can see the margin in his face. It wasn\'t the story that failed. It was one small thing he couldn\'t quite make fit, some seam he found that you didn\'t know was showing. You\'ll never know which one.',
       },
       {
         kind: 'voice',
