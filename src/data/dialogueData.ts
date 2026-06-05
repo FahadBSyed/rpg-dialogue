@@ -377,12 +377,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         skillKey: 'scavenging',
         successInterjection: {
           speaker: 'SCAVENGING',
-          text: 'The dead one\'s got a whip coiled at his belt. Reach. You don\'t have reach and they know how to swarm — take it.',
+          text: 'The dead one\'s got a whip coiled at his belt. Crack it once and they flinch — buys you a step whether you\'re going through them or past them. Take it.',
         },
         successBonus: {
           type: 'size_step_up',
-          skillKey: 'endurance',
-          sourceDescription: 'Goblin\'s whip — reach advantage',
+          skillKey: 'dangerSense',
+          sourceDescription: 'Goblin\'s whip — one crack, they flinch',
         },
       },
       {
@@ -397,6 +397,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Finish it.',
         nextNodeId: 'goblin_fight_won',
         check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+      },
+      {
+        id: 'run',
+        text: 'They\'re still deciding. Move now — through the gap, before they close it.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_cornered' },
       },
     ],
   },
