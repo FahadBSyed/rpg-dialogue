@@ -370,8 +370,27 @@ export const useGameStore = create<GameState>()((set, get) => ({
             bonuses = [...bonuses, { ...beat.successBonus, id: newBonusId() }]
           }
           revealedSomething = true
+        } else if (beat.failInterjection) {
+          revealed.push({
+            type: 'check',
+            speaker: skill.name.toUpperCase(),
+            text: '',
+            checkOutcome: 'failed',
+            checkRolls: rolls,
+            checkDiceSize: effectiveSize,
+            passive: true,
+          })
+          revealed.push({
+            type: 'interjection',
+            speaker: beat.failInterjection.speaker,
+            text: beat.failInterjection.text,
+          })
+          if (beat.failPenalties?.length) {
+            penalties = [...penalties, ...beat.failPenalties.map((p) => ({ ...p, id: newPenaltyId() }))]
+          }
+          revealedSomething = true
         }
-        // on fail: nothing revealed, loop continues to the next beat
+        // on fail with no failInterjection: nothing revealed, loop continues
       }
     }
 

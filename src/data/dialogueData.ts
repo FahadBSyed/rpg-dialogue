@@ -37,6 +37,8 @@ export interface PassiveBeat {
   skillKey: SkillKey
   successInterjection: Interjection
   successBonus?: { type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }
+  failInterjection?: Interjection
+  failPenalties?: Array<{ type: PenaltyType; skillKey?: SkillKey; lockKey?: string; sourceDescription: string }>
 }
 
 export type Beat = VoiceBeat | PassiveBeat
@@ -159,10 +161,17 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         },
       },
       {
-        kind: 'voice',
-        speaker: 'HUNGER',
-        text: 'That smells edible, actually. The spit. To you, I mean. Not just to them. I\'m only mentioning it. I\'ll stop.',
-        penalties: [
+        kind: 'passive',
+        skillKey: 'hunger',
+        successInterjection: {
+          speaker: 'HUNGER',
+          text: 'That smells edible. I\'m going to leave it there.',
+        },
+        failInterjection: {
+          speaker: 'HUNGER',
+          text: 'That smells edible, actually. The spit. To you, I mean. Not just to them. I\'m only mentioning it. I\'ll stop.',
+        },
+        failPenalties: [
           { type: 'size_step_down', skillKey: 'dangerSense', sourceDescription: 'Hunger distracted Fiodor' },
           { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Hunger distracted Fiodor' },
           { type: 'size_step_down', skillKey: 'reputation', sourceDescription: 'Hunger distracted Fiodor' },
