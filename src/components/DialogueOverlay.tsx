@@ -583,6 +583,10 @@ export function DialogueOverlay() {
                     pendingBonuses.some(
                       (b) => b.type === 'unlock_choice' && b.unlockKey === choice.requiresUnlock
                     )) &&
+                  (!choice.suppressedBy ||
+                    !pendingBonuses.some(
+                      (b) => b.type === 'unlock_choice' && b.unlockKey === choice.suppressedBy
+                    )) &&
                   (!choice.lockedBy ||
                     !pendingPenalties.some(
                       (p) => p.type === 'lock_choice' && p.lockKey === choice.lockedBy

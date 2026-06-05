@@ -9,6 +9,8 @@ export interface DialogueChoice {
   check?: { skillKey: SkillKey; failNodeId?: string }
   // Only shown when a matching `unlock_choice` bonus is currently pending.
   requiresUnlock?: string
+  // Hidden when a matching `unlock_choice` bonus is currently pending.
+  suppressedBy?: string
   // Hidden when a matching `lock_choice` penalty is currently active.
   lockedBy?: string
 }
@@ -36,7 +38,10 @@ export interface PassiveBeat {
   id?: string
   skillKey: SkillKey
   successInterjection: Interjection
-  successBonus?: { type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }
+  successBonuses?: Array<{ type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }>
+  // Auto-passes if a size_step_up bonus for this skill is pending (the player
+  // already did the work — the grab is certain).
+  guaranteedBy?: SkillKey
   failInterjection?: Interjection
   failPenalties?: Array<{ type: PenaltyType; skillKey?: SkillKey; lockKey?: string; sourceDescription: string }>
 }
@@ -75,11 +80,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
           speaker: 'WAYFINDING',
           text: 'The room is three steps and a shadow. The pacing one walks a circuit — fire, wall, passage, back. Eleven seconds, give or take. There is a dead angle behind the rubble pile, left of centre, where none of the three can see at once. Wait in the dark. Move on the turn. Stand in that angle and let the circuit close around nothing.',
         },
-        successBonus: {
+        successBonuses: [{
           type: 'size_step_up',
           skillKey: 'dangerSense',
           sourceDescription: 'Wayfinding mapped the gap',
-        },
+        }],
       },
       {
         kind: 'voice',
@@ -95,11 +100,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
           speaker: 'SCAVENGING',
           text: 'There — the pale fungus clustered on the damp wall behind the rubble. Corpse-veil. It only grows where something died and it keeps a little of whatever did the killing. A crushed handful worked into something they\'re about to eat would be more than enough. Waste not.',
         },
-        successBonus: {
+        successBonuses: [{
           type: 'unlock_choice',
           unlockKey: 'poison',
           sourceDescription: 'Scavenging found corpse-veil',
-        },
+        }],
       },
     ],
     choices: [
@@ -154,11 +159,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
           speaker: 'SCAVENGING',
           text: 'Braided leather, good length. Coiled left-side, single loop over the belt — it\'ll pull free in one move if you come in from the right angle. That\'s worth knowing before you commit.',
         },
-        successBonus: {
+        successBonuses: [{
           type: 'size_step_up',
           skillKey: 'scavenging',
           sourceDescription: 'Already clocked the whip — angle, coil, grip',
-        },
+        }],
       },
       {
         kind: 'passive',
@@ -179,12 +184,6 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      {
-        id: 'sneak',
-        text: 'Enough watching. Move on the next turn.',
-        nextNodeId: 'goblin_slip',
-        check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
-      },
       { id: 'decide', text: 'You\'ve seen enough.', nextNodeId: 'goblin_approach' },
     ],
   },
@@ -398,15 +397,16 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         kind: 'passive',
         skillKey: 'scavenging',
+        // If the player scouted the whip in goblin_observe, the grab is certain.
+        guaranteedBy: 'scavenging',
         successInterjection: {
           speaker: 'SCAVENGING',
           text: 'The dead one\'s got a whip coiled at his belt. Crack it once and they flinch — buys you a step whether you\'re going through them or past them. Take it.',
         },
-        successBonus: {
-          type: 'size_step_up',
-          skillKey: 'dangerSense',
-          sourceDescription: 'Goblin\'s whip — one crack, they flinch',
-        },
+        successBonuses: [
+          { type: 'size_step_up', skillKey: 'spite', sourceDescription: 'Goblin\'s whip — one crack, they flinch' },
+          { type: 'unlock_choice', unlockKey: 'whip', sourceDescription: 'Grabbed the whip' },
+        ],
       },
       {
         kind: 'voice',
@@ -420,6 +420,14 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Finish it.',
         nextNodeId: 'goblin_fight_two_won',
         check: { skillKey: 'endurance', failNodeId: 'goblin_cornered_two' },
+        suppressedBy: 'whip',
+      },
+      {
+        id: 'fight_whip',
+        text: 'Use the whip. Keep them off you, then close the distance.',
+        nextNodeId: 'goblin_fight_two_won_whip',
+        check: { skillKey: 'spite', failNodeId: 'goblin_cornered_two' },
+        requiresUnlock: 'whip',
       },
       {
         id: 'run',
@@ -498,6 +506,27 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'continue', text: 'Catch your breath. Then go.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_fight_two_won_whip: {
+    id: 'goblin_fight_two_won_whip',
+    narrative:
+      'The whip keeps them honest. One crack and they back off a step — enough to breathe, to reset, to pick the opening. It\'s still ugly. But you had reach and they didn\'t, and when the chamber goes quiet there are two more down and the whip is still in your hand.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'That\'s what a whip is for. Not reach — humiliation. Every crack said the same thing: you can\'t get to me. They believed it long enough for it to be true.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'That\'s going to leave a mark or two. Worth it. And you\'ve got something to show for it besides the bruises.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Coil the whip and press on.', nextNodeId: 'goblin_start' },
     ],
   },
 

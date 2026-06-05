@@ -333,6 +333,19 @@ export const useGameStore = create<GameState>()((set, get) => ({
       } else {
         const skill = state.skills[beat.skillKey]
 
+        // Auto-pass if a size_step_up bonus for the guaranteedBy skill is pending
+        // (the player already did the reconnaissance work).
+        let guaranteed = false
+        if (beat.guaranteedBy) {
+          const gIdx = bonuses.findIndex(
+            (b) => b.type === 'size_step_up' && b.skillKey === beat.guaranteedBy
+          )
+          if (gIdx >= 0) {
+            guaranteed = true
+            bonuses = bonuses.filter((_, i) => i !== gIdx)
+          }
+        }
+
         // Consume a pending size_step_up bonus for this passive skill if present
         const sizeUpIdx = bonuses.findIndex(
           (b) => b.type === 'size_step_up' && b.skillKey === beat.skillKey
@@ -346,10 +359,12 @@ export const useGameStore = create<GameState>()((set, get) => ({
         const size = parseInt(effectiveSize.slice(1))
         const forceThis = force && !forceConsumed ? force : null
         if (forceThis) forceConsumed = true
-        const rolls = forceThis
+        const rolls = guaranteed
+          ? forcedRolls(skill.pool, size, 'passed')
+          : forceThis
           ? forcedRolls(skill.pool, size, forceThis)
           : rollDice(skill.pool, size)
-        const passed = !rolls.some((r) => r === 1)
+        const passed = guaranteed || !rolls.some((r) => r === 1)
         cursor++
         if (passed) {
           revealed.push({
@@ -366,8 +381,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
             speaker: beat.successInterjection.speaker,
             text: beat.successInterjection.text,
           })
-          if (beat.successBonus) {
-            bonuses = [...bonuses, { ...beat.successBonus, id: newBonusId() }]
+          if (beat.successBonuses?.length) {
+            bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
           }
           revealedSomething = true
         } else if (beat.failInterjection) {
