@@ -148,13 +148,6 @@ function AnimatedText({ text, instant, onDone, onLineReveal }: {
 
 const DICE_STEPS = ['d4', 'd6', 'd8', 'd10', 'd12'] as const
 
-function netDiceSize(base: string, sizeUps: number, sizeDowns: number): string {
-  const net = sizeUps - sizeDowns
-  const idx = DICE_STEPS.indexOf(base as typeof DICE_STEPS[number])
-  const clamped = Math.max(0, Math.min(DICE_STEPS.length - 1, idx + net))
-  return DICE_STEPS[clamped]
-}
-
 const BONUS_TYPE_LABELS: Record<string, string> = {
   size_step_up: 'Die step up',
   ignore_stress: 'Ignore stress',
@@ -180,8 +173,15 @@ function CheckAnnotation({ checkName, color, skill, bonuses, penalties }: {
   const sizeUps = bonuses.filter((b) => b.type === 'size_step_up').length
   const sizeDowns = penalties.filter((p) => p.type === 'size_step_down').length
   const stressDice = penalties.filter((p) => p.type === 'add_stress_die').length
-  const effectiveSize = netDiceSize(skill.size, sizeUps, sizeDowns)
-  const effectivePool = skill.pool + stressDice
+  // Size steps that fall below the minimum die don't vanish — each becomes a
+  // stress die added to the pool (mirrors the resolution in chooseOption).
+  const net = sizeUps - sizeDowns
+  const baseIdx = DICE_STEPS.indexOf(skill.size as typeof DICE_STEPS[number])
+  const rawIdx = baseIdx + net
+  const clampedIdx = Math.max(0, Math.min(DICE_STEPS.length - 1, rawIdx))
+  const effectiveSize = DICE_STEPS[clampedIdx]
+  const overflowDice = Math.max(0, -rawIdx)
+  const effectivePool = skill.pool + stressDice + overflowDice
   const sizeChanged = effectiveSize !== skill.size
   const poolChanged = effectivePool !== skill.pool
   const hasModifiers = bonuses.length > 0 || penalties.length > 0

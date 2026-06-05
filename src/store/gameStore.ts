@@ -523,16 +523,31 @@ export const useGameStore = create<GameState>()((set, get) => ({
     // Apply and consume applicable penalties
     let remainingPenalties = state.pendingPenalties
     let appliedPenalty: LogEntry['appliedPenalty'] | undefined
+    const penaltyDescs: string[] = []
+    // Size penalties that land while the die is already at the minimum get
+    // converted into permanent stress dice on the skill's pool instead.
+    let permanentStressDice = 0
 
-    const sizeDownIdx = remainingPenalties.findIndex(
+    // Consume every size_step_down penalty for this skill. Each steps the die
+    // down one notch; once the die is already at the minimum (d4), each further
+    // point permanently adds a stress die to the skill's pool instead.
+    let sizeDownIdx = remainingPenalties.findIndex(
       (p) => p.type === 'size_step_down' && p.skillKey === skillKey
     )
-    if (sizeDownIdx >= 0) {
+    while (sizeDownIdx >= 0) {
       const p = remainingPenalties[sizeDownIdx]
       const stepped = stepDownSize(effectiveSize)
-      appliedPenalty = { type: p.type, description: `${effectiveSize} → ${stepped} (${p.sourceDescription})` }
-      effectiveSize = stepped
+      if (stepped !== effectiveSize) {
+        penaltyDescs.push(`${effectiveSize} → ${stepped} (${p.sourceDescription})`)
+        effectiveSize = stepped
+      } else {
+        permanentStressDice += 1
+        penaltyDescs.push(`min size — +1 permanent stress die (${p.sourceDescription})`)
+      }
       remainingPenalties = remainingPenalties.filter((_, i) => i !== sizeDownIdx)
+      sizeDownIdx = remainingPenalties.findIndex(
+        (p) => p.type === 'size_step_down' && p.skillKey === skillKey
+      )
     }
 
     const stressDieIdx = remainingPenalties.findIndex(
@@ -540,12 +555,21 @@ export const useGameStore = create<GameState>()((set, get) => ({
     )
     if (stressDieIdx >= 0) {
       const p = remainingPenalties[stressDieIdx]
-      const desc = `+1 stress die (${p.sourceDescription})`
-      appliedPenalty = appliedPenalty
-        ? { ...appliedPenalty, description: `${appliedPenalty.description}; ${desc}` }
-        : { type: p.type, description: desc }
+      penaltyDescs.push(`+1 stress die (${p.sourceDescription})`)
       effectivePool += 1
       remainingPenalties = remainingPenalties.filter((_, i) => i !== stressDieIdx)
+    }
+
+    // Fold any converted size penalties into the pool — both for this check and
+    // permanently on the skill (committed below alongside any stress-pass gain).
+    const permanentPool = skill.pool + permanentStressDice
+    effectivePool += permanentStressDice
+
+    if (penaltyDescs.length) {
+      appliedPenalty = {
+        type: permanentStressDice > 0 ? 'add_stress_die' : 'size_step_down',
+        description: penaltyDescs.join('; '),
+      }
     }
 
     const diceSize = parseInt(effectiveSize.slice(1))
@@ -559,16 +583,21 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     let outcome: CheckOutcome
     let nextNodeId = choice.nextNodeId
-    let updatedSkills = state.skills
-    let flashingSkill: SkillKey | null = null
+    // Bank any permanent stress dice the size penalties converted into.
+    let updatedSkills: Skills = permanentStressDice > 0
+      ? { ...state.skills, [skillKey]: { ...skill, pool: permanentPool } }
+      : state.skills
+    // A permanent pool change is worth flashing the skill for, same as a
+    // stress-pass gain.
+    let flashingSkill: SkillKey | null = permanentStressDice > 0 ? skillKey : null
 
     if (hasFailed) {
       outcome = 'failed'
       if (failNodeId) nextNodeId = failNodeId
     } else if (hasOdd) {
       outcome = 'passed_stressed'
-      if (skill.pool < 8) {
-        updatedSkills = { ...state.skills, [skillKey]: { ...skill, pool: skill.pool + 1 } }
+      if (permanentPool < 8) {
+        updatedSkills = { ...updatedSkills, [skillKey]: { ...updatedSkills[skillKey], pool: permanentPool + 1 } }
         flashingSkill = skillKey
         // flash is scheduled at commit time (after the dice settle)
       }
