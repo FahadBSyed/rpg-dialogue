@@ -17,6 +17,7 @@ const COLORS: Record<CheckOutcome, string> = {
 export function DebugControls() {
   const force = useGameStore((s) => s.debugForceOutcome)
   const setDebugForce = useGameStore((s) => s.setDebugForce)
+  const currentNodeId = useGameStore((s) => s.currentNodeId)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -31,6 +32,7 @@ export function DebugControls() {
 
   return (
     <div style={styles.bar}>
+      <span style={styles.nodeId}>{currentNodeId}</span>
       {(['passed', 'passed_stressed', 'failed'] as CheckOutcome[]).map((outcome) => {
         const active = force === outcome
         return (
@@ -76,6 +78,13 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     borderRadius: 0,
     transition: 'border-color 0.1s, color 0.1s',
+  },
+  nodeId: {
+    fontFamily: 'monospace',
+    fontSize: '0.68rem',
+    letterSpacing: '0.04em',
+    color: '#4a4a3a',
+    marginRight: '4px',
   },
   indicator: {
     fontFamily: 'monospace',
