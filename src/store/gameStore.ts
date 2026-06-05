@@ -59,6 +59,8 @@ export interface LogEntry {
   type: 'narrative' | 'choice' | 'interjection' | 'check'
   speaker: string
   text: string
+  // Spoken aloud by an NPC rather than an internal skill voice (interjections).
+  external?: boolean
   checkOutcome?: CheckOutcome
   checkRolls?: number[]
   checkDiceSize?: DiceSize
@@ -335,7 +337,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     while (cursor < beats.length && !revealedSomething) {
       const beat = beats[cursor]
       if (beat.kind === 'voice') {
-        revealed.push({ type: 'interjection', speaker: beat.speaker, text: beat.text })
+        revealed.push({ type: 'interjection', speaker: beat.speaker, text: beat.text, external: beat.external })
         if (beat.penalties?.length) {
           penalties = [...penalties, ...beat.penalties.map((p) => ({ ...p, id: newPenaltyId() }))]
         }

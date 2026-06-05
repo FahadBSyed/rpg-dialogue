@@ -41,6 +41,35 @@ export function playScribbleSoft() {
   src.start()
 }
 
+// ── Goblins: a short low guttural rasp when an NPC speaks aloud ─────────────
+export function playGoblinMutter() {
+  const c = getCtx()
+  const dur = 0.16
+  const osc = c.createOscillator()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(115 + Math.random() * 35, c.currentTime)
+  osc.frequency.exponentialRampToValueAtTime(62, c.currentTime + dur)
+
+  // A second detuned voice for a rougher, throatier timbre
+  const osc2 = c.createOscillator()
+  osc2.type = 'square'
+  osc2.frequency.setValueAtTime(78 + Math.random() * 18, c.currentTime)
+  osc2.frequency.exponentialRampToValueAtTime(48, c.currentTime + dur)
+
+  const lp = c.createBiquadFilter()
+  lp.type = 'lowpass'
+  lp.frequency.value = 850
+
+  const env = c.createGain()
+  env.gain.setValueAtTime(0.001, c.currentTime)
+  env.gain.linearRampToValueAtTime(0.5, c.currentTime + 0.02)
+  env.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur)
+
+  osc.connect(lp); osc2.connect(lp); lp.connect(env); env.connect(master(c, 0.16))
+  osc.start();  osc.stop(c.currentTime + dur + 0.02)
+  osc2.start(); osc2.stop(c.currentTime + dur + 0.02)
+}
+
 export function playScribble() {
   const c = getCtx()
   const dur = 0.12

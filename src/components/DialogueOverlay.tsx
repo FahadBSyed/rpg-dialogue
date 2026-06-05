@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useGameStore, LogEntry, ActiveBonus, ActivePenalty, Skill } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
-import { playScribble, playScribbleSoft, playSkillChime, playCheckPass } from '../audio/soundManager'
+import { playScribble, playScribbleSoft, playSkillChime, playCheckPass, playGoblinMutter } from '../audio/soundManager'
 
 // Colour the speaker tag by attribute / role
 const SPEAKER_COLORS: Record<string, string> = {
@@ -25,6 +25,11 @@ const SPEAKER_COLORS: Record<string, string> = {
   'DANGER SENSE': '#6ab0a0',
   SUPERSTITION: '#6ab0a0',
   'THE DEEP':   '#6ab0a0',
+  // External voices — the goblins. A sickly-green family, distinct from the
+  // internal skill palette: deep moss (Grit), acid (Nim), dull olive (Bole).
+  GRIT:         '#6e8257',
+  NIM:          '#9fb046',
+  BOLE:         '#8a924f',
 }
 
 function speakerColor(speaker: string): string {
@@ -386,6 +391,31 @@ function LogLine({ entry, muted, instant = true, onDone }: {
   onDone?: () => void
 }) {
   if (entry.type === 'check') return <CheckEntry entry={entry} />
+
+  // External speech — a goblin talking aloud. Distinct from the internal skill
+  // voices: a guillemet tag, the goblin's green, and italic "spoken" prose.
+  if (entry.external) {
+    const tagColor = muted ? '#3f4632' : speakerColor(entry.speaker)
+    const bodyColor = muted ? '#4c5238' : '#aeb887'
+    return (
+      <div style={{ display: 'flex', alignItems: 'baseline', marginBottom: '10px' }}>
+        <span style={{ color: tagColor, fontFamily: 'monospace', fontSize: '0.75rem', letterSpacing: '0.08em', marginRight: '10px', flexShrink: 0 }}>
+          » {entry.speaker}
+        </span>
+        <span style={{
+          fontFamily: "'Georgia', 'Times New Roman', serif",
+          fontSize: '0.93rem',
+          lineHeight: '1.65',
+          color: bodyColor,
+          fontStyle: 'italic',
+          letterSpacing: '0.01em',
+        }}>
+          <AnimatedText key={entry.text} text={entry.text} instant={instant} onDone={onDone} />
+        </span>
+      </div>
+    )
+  }
+
   const isChoice = entry.type === 'choice'
   const textColor = muted
     ? (isChoice ? '#3a3028' : '#4a4038')
@@ -452,6 +482,7 @@ export function DialogueOverlay() {
   const nextSpeaker = nextBeat
     ? (nextBeat.kind === 'voice' ? nextBeat.speaker : null)
     : null
+  const nextExternal = !!(nextBeat && nextBeat.kind === 'voice' && nextBeat.external)
   // Portrait follows the most recently revealed voice line.
   const lastVoice = [...revealedBeats].reverse().find((e) => e.type === 'interjection')
   const activeSpeaker = lastVoice ? lastVoice.speaker : null
@@ -506,6 +537,7 @@ export function DialogueOverlay() {
       const fresh = revealedBeats.slice(prevRevealedLen.current)
       fresh.forEach((e) => {
         if (e.type === 'check' && e.passive) playCheckPass()
+        else if (e.type === 'interjection' && e.external) playGoblinMutter()
         else if (e.type === 'interjection') playSkillChime(e.speaker)
       })
     }
@@ -589,7 +621,7 @@ export function DialogueOverlay() {
               >
                 {nextSpeaker && (
                   <span style={{ color: speakerColor(nextSpeaker), fontFamily: 'monospace', fontSize: '0.75rem', marginRight: '10px' }}>
-                    [{nextSpeaker}]
+                    {nextExternal ? `» ${nextSpeaker}` : `[${nextSpeaker}]`}
                   </span>
                 )}
                 …
