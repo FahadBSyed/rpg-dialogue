@@ -356,7 +356,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'wait',
         text: 'Wait. Not yet.',
-        nextNodeId: 'goblin_start',
+        nextNodeId: 'goblin_observe',
       },
     ],
   },
@@ -472,7 +472,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'back',
         text: 'Not like this. Step back into the dark.',
-        nextNodeId: 'goblin_start',
+        nextNodeId: 'goblin_observe',
       },
       {
         id: 'press',
