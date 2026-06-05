@@ -129,7 +129,8 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'terrify',
         text: 'Step into the firelight. All the way. Make them look at what\'s walking toward them.',
-        nextNodeId: 'goblin_terrify_ready',
+        nextNodeId: 'goblin_terrify_success',
+        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
       },
     ],
   },
@@ -452,51 +453,25 @@ export const dialogueNodes: Record<string, DialogueNode> = {
 
   // ── Terrify path ─────────────────────────────────────────────────────────────
 
-  goblin_terrify_ready: {
-    id: 'goblin_terrify_ready',
+  goblin_terrify_success: {
+    id: 'goblin_terrify_success',
     narrative:
-      'You step out of the dark and into the firelight. Upright, unhurried, the way something walks when it expects to be the most dangerous thing in the room. The pacing goblin stops mid-circuit. The arguing pair look up. The bright thing drops, forgotten. For a moment the chamber holds its breath.',
+      'You step out of the dark and into the firelight. Upright, unhurried, the way something walks when it expects to be the most dangerous thing in the room. The pacing goblin stops mid-circuit. The arguing pair look up. The bright thing drops, forgotten. Something registers — maybe the name, maybe the posture, maybe the fact that you don\'t look like someone who expects to lose. One of them breaks first. Then the other two follow. The chamber empties toward the far passage in a shrieking scatter. The pacing one is last. He looks back once. You hold his gaze. He goes.',
     beats: [
       {
         kind: 'voice',
         speaker: 'SPITE',
-        text: 'Show them. SHOW them what they\'re dealing with.',
+        text: 'Show them. SHOW them what they\'re dealing with. Good. Now let them carry it.',
       },
       {
         kind: 'voice',
         speaker: 'ENDURANCE',
-        text: 'Don\'t slow down. Don\'t flinch. If the body wavers the whole thing falls apart — you are the weight at the end of this and you do not stop.',
+        text: 'You didn\'t slow down. Didn\'t flinch. That was the whole of it — the body believed it so they had to.',
       },
-    ],
-    choices: [
-      {
-        id: 'back',
-        text: 'Not like this. Step back into the dark.',
-        nextNodeId: 'goblin_observe',
-      },
-      {
-        id: 'press',
-        text: 'Don\'t stop. Keep walking. Make it real.',
-        nextNodeId: 'goblin_terrify_success',
-        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
-      },
-    ],
-  },
-
-  goblin_terrify_success: {
-    id: 'goblin_terrify_success',
-    narrative:
-      'Something registers. Maybe it\'s the name — you\'ve moved through these tunnels long enough to leave marks, and the things that live here learn to read them. Maybe it\'s the posture, the eyes, the fact that you don\'t look like someone who expects to lose. One of them breaks first. Then the other two follow. The chamber empties toward the far passage in a shrieking scatter. The pacing one is last. He looks back once. You hold his gaze. He goes.',
-    beats: [
       {
         kind: 'voice',
         speaker: 'REPUTATION',
         text: 'They knew. Maybe not the name — the shape of the thing. You\'ve made yourself into something that registers down here. That was the work of a long time. It just paid out.',
-      },
-      {
-        kind: 'voice',
-        speaker: 'SPITE',
-        text: 'Good. Let them carry it. Every creature in these tunnels hears what just happened here. That\'s how you build a wall nobody can see.',
       },
     ],
     choices: [
@@ -507,8 +482,13 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_terrify_fail: {
     id: 'goblin_terrify_fail',
     narrative:
-      'They don\'t break. The pacing one takes a step toward you. The arguing pair close together and then spread apart in a practiced way that says: this isn\'t the first time something bigger walked in and tried this. One of them grins. It\'s the kind of grin that lives in dungeons because everything that wore it survived long enough to grow teeth.',
+      'You step out of the dark and into the firelight. Upright, unhurried. The pacing goblin stops. The arguing pair look up. For a moment the chamber holds its breath — and then it doesn\'t. They don\'t break. The pacing one takes a step toward you. The arguing pair close together and then spread apart in a practiced way that says: this isn\'t the first time something bigger walked in and tried this. One of them grins. It\'s the kind of grin that lives in dungeons because everything that wore it survived long enough to grow teeth.',
     beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Don\'t let the body show it. They\'re reading you right now — whatever they just saw, don\'t give them more.',
+      },
       {
         kind: 'voice',
         speaker: 'SPITE',
