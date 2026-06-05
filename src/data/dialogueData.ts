@@ -1313,6 +1313,223 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'threat',
         text: 'Speak — slow, certain — and tell them exactly what happens to things that corner you.',
+        nextNodeId: 'goblin_talk_open',
+      },
+    ],
+  },
+
+  // ── Spoken threat conversation ───────────────────────────────────────────────
+  // The check doesn't come at the start — it has to be earned by reading the
+  // room correctly. The correct read: GRIT holds the decision, NIM holds the
+  // noise. Engaging NIM hands him a stage; speaking to all three means none of
+  // them have to decide alone. Thread it right and the Deception check fires
+  // at full in goblin_talk_close. Thread it wrong and either a size_step_down
+  // travels into the check, or the lie collapses before the dice come out.
+  //
+  //   goblin_talk_open
+  //     → goblin_talk_grit          (right read: answer GRIT specifically)
+  //         → goblin_talk_close     (ideal: ignore NIM, keep eyes on GRIT)
+  //         → goblin_talk_nim_enter (mistake: engage NIM → penalty → close)
+  //     → goblin_talk_room          (wrong read: play to the whole room)
+  //         → goblin_talk_close     (recovery: cut the theater, find GRIT → penalty)
+  //         → goblin_cornered       (doubled down: NIM was right, they close in)
+  //   goblin_talk_close → Deception check → goblin_threat_success / goblin_threat_fail
+
+  goblin_talk_open: {
+    id: 'goblin_talk_open',
+    narrative:
+      'You open your mouth and the chamber rearranges itself around the fact of it — now there is a voice in here that isn\'t theirs, and all three of them are sorting out what that means. GRIT is waiting to hear the rest. His expression hasn\'t changed. That\'s either patience or it\'s something worse.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'It talks. Grit, it talks. I thought it was just going to — I don\'t know what I thought it was going to do. But it talks.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Oh good. Another big thing with words. I\'ve seen big things with words before. The words always run out eventually. Then you get to see what was under them the whole time.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'NIM is the one who\'ll pull it apart if you give him anything to pull. He\'s reading you like a length of rope — testing for the weak braid, the place where you snap. Don\'t hand him an end.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'GRIT asked the question. GRIT holds the decision — not NIM, not BOLE. NIM is noise that GRIT is already half-tired of. Answer the one that matters. You don\'t have to do anything with the other two; GRIT will handle them the moment he decides they need handling.',
+      },
+    ],
+    choices: [
+      {
+        id: 'answer_grit_past',
+        text: 'Answer GRIT. What you left in the last tunnel — one thing, specific, flat, past tense.',
+        nextNodeId: 'goblin_talk_grit',
+      },
+      {
+        id: 'answer_grit_cost',
+        text: 'Answer the question he didn\'t ask: what it costs them to find out what you are.',
+        nextNodeId: 'goblin_talk_grit',
+      },
+      {
+        id: 'answer_room',
+        text: 'Speak to all three. Make it large enough for the room.',
+        nextNodeId: 'goblin_talk_room',
+      },
+    ],
+  },
+
+  goblin_talk_grit: {
+    id: 'goblin_talk_grit',
+    narrative:
+      'Something shifts. GRIT\'s jaw doesn\'t move but his eyes do — a small, sideways adjustment, the kind a careful thing makes when it\'s quietly updating its estimate of a situation. BOLE has gone very still in the way large animals go still when they\'re unsure which direction the threat is pointing. NIM reads the shift and doesn\'t like what he reads, which is why he starts talking.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Nim. Nim, be quiet a minute. Let Grit — just let him think a minute.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'No. Don\'t let it talk. That\'s exactly what it wants — the talking, that\'s the whole trick of it. It\'s one thing and there\'s three of us and the math hasn\'t CHANGED, the math doesn\'t care how it talks, GRIT—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'NIM is scared. That\'s good — a scared thing makes noise because silence is what it would make if it were certain. Don\'t look at him. Not even to dismiss him. Let GRIT decide what NIM is worth, in this moment, without any help from you. GRIT is already doing the math. Let him finish it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'ignore_nim',
+        text: 'Keep your eyes on GRIT. Let NIM bark. Don\'t give him a single word.',
+        nextNodeId: 'goblin_talk_close',
+      },
+      {
+        id: 'address_nim',
+        text: 'One line at NIM — put him in the ground, then back to GRIT.',
+        nextNodeId: 'goblin_talk_nim_enter',
+      },
+    ],
+  },
+
+  goblin_talk_nim_enter: {
+    id: 'goblin_talk_nim_enter',
+    narrative:
+      'You look at NIM. And NIM, who has been waiting for exactly this opening, already has something ready. Of course he does.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Oh NOW it looks at me. NOW it decides I\'m worth — after it said its careful thing for GRIT and now it needs to handle ME separately because I\'m the difficult one. Yes. I\'m the difficult one. I\'ve always been the difficult one. That\'s how I\'m still HERE.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'He\'s not wrong.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You gave him a stage and he built a whole theater on it in four seconds. He\'s not louder than you — he\'s sharper in this particular corner, and sharpness in a small space beats loud every time. GRIT just watched you lose half the room you built. Don\'t add a word. Find GRIT\'s eyes and finish what you started there.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Lost ground engaging NIM — he\'s better at this than you in here' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'This is what it looks like when the walls of a thing start to show. You\'ve seen it from the outside. Don\'t keep talking — more words digs the hole deeper. Get back to GRIT. The decision still lives in GRIT.',
+      },
+    ],
+    choices: [
+      {
+        id: 'back_to_grit',
+        text: 'Back to GRIT. Don\'t give NIM another word.',
+        nextNodeId: 'goblin_talk_close',
+      },
+    ],
+  },
+
+  goblin_talk_room: {
+    id: 'goblin_talk_room',
+    narrative:
+      'You speak to all three and it goes wrong the moment you do it — you feel it before you hear it, the way you feel a foot misplaced in the dark before the sound arrives. Speaking to the room means none of them has to decide alone, and things that don\'t have to decide alone don\'t decide to be frightened.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'THAT. Right there — d\'you hear it, Bole? The performance voice. The thing in the upper tunnels had it. The thing at the Crag had it. Right before Scratt opened them up and they stopped performing. You know the performance voice.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...yeah. Yeah, I know the performance voice.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Hm.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'NIM named it. Once the name is on a thing it stops being frightening and starts being a category, and everything in the category is manageable. You have two words, maybe three, before GRIT assigns you to the list of things that didn\'t make it past his fire.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'NIM is a write-off — don\'t touch him, he\'s already won his corner. GRIT is the only path left. Find his eyes, cut every piece of theater out of it, and say the one specific true-sounding thing plain, like you\'re reporting weather. It\'s thin. It\'s the only thread you\'ve got.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'NIM named the performance — GRIT is halfway unconvinced already' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'recover',
+        text: 'Stop. Find GRIT\'s eyes only. Say the one thing, stripped of all of it.',
+        nextNodeId: 'goblin_talk_close',
+      },
+      {
+        id: 'double_down',
+        text: 'More of it — harder, more specific, louder. They just need to feel the weight of it.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_talk_close: {
+    id: 'goblin_talk_close',
+    narrative:
+      'The chamber settles around the last thing you said. GRIT hasn\'t moved. NIM has stopped. BOLE is watching GRIT instead of you, which is the tell — he\'s decided already that GRIT\'s face is the answer, and GRIT\'s face hasn\'t given it yet. This is the seam of it. The part between the last word and the decision, where the whole structure either holds or it doesn\'t. You can feel them inside it. The question is what GRIT decides the silence means.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'Don\'t add anything. The instinct to fill this silence is exactly how lies come apart — the one extra word, the explaining, the patch that shows the hole it was covering. You said the thing. Let it sit. Let him do the last piece of the work himself.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'Old rule: never be the second thing to speak after a silence this shape. Whatever lives in that shape, it\'s working for you. Don\'t kill it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'hold',
+        text: 'Hold still. Let him decide.',
         nextNodeId: 'goblin_threat_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_threat_fail' },
       },
