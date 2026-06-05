@@ -903,7 +903,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'fight',
         text: 'Finish it.',
         nextNodeId: 'goblin_fight_two_won',
-        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered_two' },
+        check: { skillKey: 'endurance', failNodeId: 'goblin_ambush_overextended' },
         suppressedBy: 'whip',
       },
       {
@@ -1029,6 +1029,36 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'continue', text: 'Coil the whip and press on.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_ambush_overextended: {
+    id: 'goblin_ambush_overextended',
+    narrative:
+      'You go in hard and the follow-through is wrong — the blade catches on something it shouldn\'t, bone or belt or the cheap iron of GRIT\'s armour, and for one terrible half-second you are leaning forward with your weight fully committed and your arm locked out and no way to recover it. By the time you wrench free, NIM is already inside your guard. BOLE is three steps behind him, grief and hunger wearing the same face. The opening you bought just cost you everything you got from it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Stuck. It\'s stuck — BOLE, it\'s stuck, get in, get IN—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'You overstretched. The body did what you asked and then it asked back, and the answer was no. Pull it together. You\'re still up. That\'s the only number that matters right now.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Overextended — the follow-through went wrong' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'The last time you got this wrong someone else pulled you out of it. Nobody is going to pull you out of this. So get your weight back under you and finish what you started.',
+      },
+    ],
+    choices: [
+      { id: 'regroup', text: 'Get your weight back. Face them.', nextNodeId: 'goblin_cornered_two' },
     ],
   },
 
