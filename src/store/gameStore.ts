@@ -379,7 +379,12 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
           const size = parseInt(effectiveSize.slice(1))
           const forceThis = force && !forceConsumed ? force : null
-          if (forceThis) forceConsumed = true
+          // Only consume the force when this beat has visible output for that
+          // outcome — otherwise let it pass through to the next passive beat.
+          if (forceThis) {
+            const hasVisible = forceThis === 'failed' ? !!beat.failInterjection : !!beat.successInterjection
+            if (hasVisible) forceConsumed = true
+          }
           rolls = guaranteed
             ? forcedRolls(skill.pool, size, 'passed')
             : forceThis
