@@ -1315,6 +1315,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Take the floor before they can move. "Easy. Hands where they are. I came to talk — and you\'ll want to hear it before you decide anything."',
         nextNodeId: 'goblin_talk_open',
       },
+      {
+        id: 'bribe',
+        text: '(come out of your coat with the grey handful, slow) "Before anyone reaches for anything — there\'s a thing here worth more to you than I am. Look at it before you decide."',
+        nextNodeId: 'goblin_bribe_open',
+        requiresUnlock: 'poison',
+      },
     ],
   },
 
@@ -1745,6 +1751,340 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'fight', text: 'The talking\'s done. Do it the hard way.', nextNodeId: 'goblin_cornered' },
+    ],
+  },
+
+  // ── Bribe conversation ───────────────────────────────────────────────────────
+  // Only reachable with the corpse-veil (the 'poison' unlock, consumed on the
+  // confront choice — once it's on offer, it's committed). The catch: corpse-
+  // veil is poison, so selling it as food is the trap. The two real frames are
+  // value (NIM's greed, read via Appraisal) and ward (GRIT's fear of the deep,
+  // read via Dungeon Lore). Gated passive reads point you to the right frame and
+  // the right way to seal it; a misread routes through goblin_bribe_thin, which
+  // applies a size_step_down on Appraisal that travels into the closing check.
+  //
+  //   goblin_bribe_open
+  //     food  → goblin_bribe_food   (trap)  → recover → thin → close
+  //                                          → double down → goblin_cornered
+  //     value → goblin_bribe_value           → good seal → close
+  //                                          → weak seal → thin → close
+  //     ward  → goblin_bribe_ward            → good seal → close
+  //                                          → weak seal → thin → close
+  //   goblin_bribe_close → Appraisal check → goblin_bribe_success / goblin_bribe_fail
+
+  goblin_bribe_open: {
+    id: 'goblin_bribe_open',
+    narrative:
+      'You don\'t reach for a blade. You reach into your coat and come out with the grey handful — corpse-veil, pale and dense, the fungus off the wet wall — and you hold it where the firelight can find it. Three sets of eyes go to it at once. The thing about a gift in the dark is that each thing looking at it wants something different from it, and you can read those wants on their faces if you\'re quick.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Is that — that\'s a mushroom. That\'s food. Grit, it\'s holding food, is it going to — is it for sharing? Is the food for sharing?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Why\'s it showing us. Things don\'t show you what they\'ve got, not down here, not unless there\'s a hook in it. What\'s the hook. There\'s always a hook in the showing.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Hands where they are. Good. Now tell me why I\'m looking at a fistful of deathcap instead of a fight.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'Corpse-veil. It only takes where something died and the dying didn\'t finish leaving. The old warrens hang it at their deepest doors — the deep-things won\'t cross a threshold that smells of a kill already claimed. GRIT\'s been watching the dark all night because the dark\'s been wrong. Don\'t offer him a meal. Offer him a ward.',
+        },
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: 'The small one\'s eyes are doing sums on it. He found the buckle — he\'s the one who measures worth, and worth is the lever you have. And do not call it food. The big one will have it down his throat before you finish the sentence, and then there\'s no trade, one dead goblin, and two who watched you do it.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'food',
+        text: '(to BOLE) "You\'re starving. Take it — eat well, and we\'ll call it square between us."',
+        nextNodeId: 'goblin_bribe_food',
+      },
+      {
+        id: 'value',
+        text: '(to NIM) "That buckle you\'re guarding? This is worth ten of it to the right buyer. You\'re the one who knows worth here — look at it properly."',
+        nextNodeId: 'goblin_bribe_value',
+      },
+      {
+        id: 'ward',
+        text: '(to GRIT) "You said the dark\'s been wrong since sundown. You know what grows where things die — and what it keeps from a fire. That\'s what I\'m putting on the ground. A ward, for one walk past your passage."',
+        nextNodeId: 'goblin_bribe_ward',
+      },
+    ],
+  },
+
+  goblin_bribe_food: {
+    id: 'goblin_bribe_food',
+    narrative:
+      'BOLE is moving before you finish the word — a lunge of pure want — and NIM\'s arm slaps flat across his chest and stops him dead. NIM\'s eyes have gone to slits. Nobody gives food away in a hole like this. He knows that in his teeth, and you\'ve just made him stand there and wonder why you\'d break the rule.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Nim — Nim, let go, it SAID, it said I could, it said eat well—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It said. It said. Things that hand you food in the dark, Bole — you know what wants you slow and full and not looking. What\'s in it. What. Is. In. It.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...That\'s the right question, actually. What is in it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'He is two words from the truth, and the truth is poison. You can\'t sell a meal now — they\'ve stopped seeing food and started seeing a method. The only road left is to make it worth something other than eating, and to do it before NIM finishes the sentence he\'s building.',
+      },
+    ],
+    choices: [
+      {
+        id: 'recover',
+        text: '(to NIM, fast) "Nothing\'s in it that touches you — because you\'re not going to eat it. You\'re going to sell it. Forget his stomach. Use your eyes."',
+        nextNodeId: 'goblin_bribe_thin',
+      },
+      {
+        id: 'double_down',
+        text: '(to BOLE) "It\'s just a mushroom. Go on — take it—"',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_bribe_value: {
+    id: 'goblin_bribe_value',
+    narrative:
+      'NIM doesn\'t take it. But he doesn\'t look away from it either, and the not-looking-away is the whole game. He\'s weighing it the way he weighed the buckle, the way he weighs everything — worth set against the trouble of getting it. Greed and suspicion in the same squint. You have to feed the one without feeding the other.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Worth ten of it. Worth ten of it, says the cornered thing, with no reason in the world to lie to us. If it\'s worth so much, why\'s it in your hand and not down your own coat? Why\'s it for giving?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'He\'s got you there. Generous, you. Suspiciously generous, for a thing with its back to my fire.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'appraisal',
+        successInterjection: {
+          speaker: 'APPRAISAL',
+          text: 'The price isn\'t the con — it really is worth more than the buckle, and he half-believes that already. The con is the giving. Don\'t defend the value; explain the parting. Give him the one reason a desperate thing hands over treasure: because the thing it buys is worth more than treasure. He\'d make that trade himself, and he knows it.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'seal_good',
+        text: '(to NIM) "Because I can\'t spend it dead. Passage out is worth more to me than coin I won\'t live to carry. You\'d make the same trade — you know you would."',
+        nextNodeId: 'goblin_bribe_close',
+      },
+      {
+        id: 'seal_weak',
+        text: '(to NIM) "Does it matter why? It\'s yours. Just let me by and it\'s yours, no hook, no catch."',
+        nextNodeId: 'goblin_bribe_thin',
+      },
+    ],
+  },
+
+  goblin_bribe_ward: {
+    id: 'goblin_bribe_ward',
+    narrative:
+      'GRIT looks at the fungus, and then past his own fire at the dark he\'s been watching all night, and you see the two thoughts touch. He is a thing that has stayed alive by taking threats seriously. The only question is whether he takes this one seriously enough to deal — or decides you\'re playing back the exact fear he\'s already carrying, which is its own kind of insult.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'A ward. You\'re telling me that\'s a ward. And you happen to have one, and you happen to offer it the one night the dark\'s gone wrong. Convenient thing, you.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It\'s lying, Grit. It heard you fret about the dark and now it\'s selling the fret back to you at a markup—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...but what if it\'s not, though. Nim. What if it\'s a real ward and we said no and then the dark comes.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'BOLE just planted the doubt for you. Now make it specific or it withers as mysticism. Don\'t say "it protects." Say the mechanism: hung at the threshold, reeking of a death already taken, the deep-things read it as another predator\'s kill and turn aside rather than challenge the claim. Specific fear is the only kind GRIT pays for. The vague kind he already owns.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'seal_good',
+        text: '(to GRIT) "Hang it at your deepest door. Whatever climbs up out of the dark reads the smell as a kill already claimed — another predator\'s mark — and turns aside rather than challenge it. You don\'t need it forever. You need it tonight."',
+        nextNodeId: 'goblin_bribe_close',
+      },
+      {
+        id: 'seal_weak',
+        text: '(to GRIT) "It protects. That\'s all you need — it keeps the dark off your fire. Take my word."',
+        nextNodeId: 'goblin_bribe_thin',
+      },
+    ],
+  },
+
+  goblin_bribe_thin: {
+    id: 'goblin_bribe_thin',
+    narrative:
+      'It goes thin. Whatever you said didn\'t have enough weight under it, and they feel the lack the way you feel a coin lighter than it ought to be. The deal isn\'t dead. But it\'s wounded now, and they can smell that the same way they smelled the rest.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'There. There — you felt that, Grit? The bottom of it. There\'s no bottom to the thing. It\'s air all the way down.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Maybe. Maybe a thin true thing\'s still true. ...Maybe. Finish it, then. Last of it, and quick — I\'m nearly decided.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'APPRAISAL',
+        text: 'You let the price wobble, and a wobbling price is a false one — every trader knows it in their teeth. Steady it. Name the number plain and don\'t flinch off it. Flinching now reads exactly like admitting the whole thing was air.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'appraisal', sourceDescription: 'Let the price wobble — they can smell the doubt now' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'steady',
+        text: '(steady, flat, no flinch) "One walk past your fire. That\'s the whole price. Take it, or spend the night wondering what you turned down."',
+        nextNodeId: 'goblin_bribe_close',
+      },
+    ],
+  },
+
+  goblin_bribe_close: {
+    id: 'goblin_bribe_close',
+    narrative:
+      'You set it on the ground between you — grey against the stone — and the offer with it. GRIT looks at it. NIM looks at GRIT. BOLE looks at the mushroom like it\'s the only thing in the chamber. The fire ticks down a notch. This is the seam of it: the breath where a price becomes a deal or becomes an insult, and the only one who gets to say which is the one who hasn\'t spoken yet.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'APPRAISAL',
+        text: 'You\'ve set the price. Don\'t sweeten it, don\'t explain it twice — a price explained twice is one the seller doesn\'t believe. Let it sit on the stone and be worth exactly what you said.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Hands loose. Whichever way he goes, the first half-second after is the one that counts. Be ready to walk or ready to move — not both, not halfway.',
+      },
+    ],
+    choices: [
+      {
+        id: 'wait',
+        text: 'Let the price sit on the stone. Wait.',
+        nextNodeId: 'goblin_bribe_success',
+        check: { skillKey: 'appraisal', failNodeId: 'goblin_bribe_fail' },
+      },
+    ],
+  },
+
+  goblin_bribe_success: {
+    id: 'goblin_bribe_success',
+    narrative:
+      'GRIT crouches. He doesn\'t pick it up — he nudges it with two knuckles, turning it over, reading it the way you\'d read a coin for the bite of false metal. Then he stands, steps back one deliberate pace, and the gap by the passage opens like a held breath let go. He never says you can pass. He just stops being in the way, which from a thing like GRIT is the same as a signature.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Bole. Pick it up careful, by the stem, and don\'t you dare put it near your mouth — it goes on the deep door, like the thing said. ...Go on, long one. Walk. We\'re square. Don\'t come back through; the deal was for the once.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: '...and if that ward\'s a lie I\'ll have called it, I\'ll have called it twice, and nobody — nobody ever — lets me have the calling—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'It shared, though. In the end. Sort of. I\'m counting it as shared.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'APPRAISAL',
+        text: 'Clean. You sold a poison as a promise and walked out on the strength of the telling alone. Don\'t look pleased on the way past — a deal admired is a deal reconsidered. Walk like you\'d have paid double and thought it cheap.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Step past the fire and go, before he reconsiders.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_bribe_fail: {
+    id: 'goblin_bribe_fail',
+    narrative:
+      'GRIT crouches, nudges it with two knuckles, turns it over — and something in the turning doesn\'t satisfy him. Maybe the price never steadied. Maybe he\'s simply a thing that has lived this long by saying no to convenient gifts. He stands without picking it up, and the not-picking-up is the whole of the answer.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'No. I don\'t think so. Nice telling — but I\'ve bought nice tellings before and paid for them in blood. A thing that bargains this hard for a walk is a thing the walk\'s worth too much to. Which means it\'s worth something to keep you off it. Nim was right. Nim\'s usually right; it\'s why I keep him.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'I\'m USUALLY RIGHT. Bole — Bole, did you hear it, he said it with his mouth, out loud, in front of—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'APPRAISAL',
+        text: 'He didn\'t buy it. Worse — he read the hardness of the sell as the size of the prize, and now the passage is the one thing he won\'t part with. Nothing left on the table but what was always under the words.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'The deal\'s dead and the dark\'s still at their backs, not yours. Nothing for it now but the old arithmetic. Make the wanting cost them something.',
+      },
+    ],
+    choices: [
+      { id: 'fight', text: '"Have it your way." Set your feet.', nextNodeId: 'goblin_cornered' },
     ],
   },
 }
