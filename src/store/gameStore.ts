@@ -341,6 +341,9 @@ export const useGameStore = create<GameState>()((set, get) => ({
         if (beat.penalties?.length) {
           penalties = [...penalties, ...beat.penalties.map((p) => ({ ...p, id: newPenaltyId() }))]
         }
+        if (beat.bonuses?.length) {
+          bonuses = [...bonuses, ...beat.bonuses.map((b) => ({ ...b, id: newBonusId() }))]
+        }
         cursor++
         revealedSomething = true
       } else {
@@ -483,8 +486,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
         currentNodeId: choice.nextNodeId,
         beatCursor: 0,
         revealedBeats: [],
-        pendingBonuses: bonusesAfterUnlock,
-        pendingPenalties: state.pendingPenalties,
+        // A sequence-resetting choice (death) wipes carried state so the
+        // restart is a genuinely fresh run.
+        pendingBonuses: choice.resetsSequence ? [] : bonusesAfterUnlock,
+        pendingPenalties: choice.resetsSequence ? [] : state.pendingPenalties,
+        passiveCache: choice.resetsSequence ? {} : state.passiveCache,
         dialogueLog: [...state.dialogueLog, ...baseLog],
       })
       return

@@ -13,6 +13,9 @@ export interface DialogueChoice {
   suppressedBy?: string
   // Hidden when a matching `lock_choice` penalty is currently active.
   lockedBy?: string
+  // Wipes all carried state (bonuses, penalties, cached passive rolls) on the
+  // way out — used by death to make the restart a genuinely fresh run.
+  resetsSequence?: boolean
 }
 
 export interface Interjection {
@@ -34,6 +37,10 @@ export interface VoiceBeat {
   // as opposed to the internal skill voices. Rendered in a distinct style.
   external?: boolean
   penalties?: Array<{ type: PenaltyType; skillKey?: SkillKey; lockKey?: string; sourceDescription: string }>
+  // Bonuses granted unconditionally when this beat is reached — for moments
+  // that help no matter the roll (e.g. throwing the mushroom always sows a
+  // little confusion). Mirrors `penalties`.
+  bonuses?: Array<{ type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }>
 }
 
 export interface PassiveBeat {
@@ -471,7 +478,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_start' },
+      { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_fight3_r1' },
     ],
   },
 
@@ -515,7 +522,281 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_start' },
+      { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_fight3_r1' },
+    ],
+  },
+
+  // ── Three-goblin fight ───────────────────────────────────────────────────────
+  // Reached from goblin_cornered / goblin_run_cornered (and terrify/ambush
+  // failures that route through them). GRIT is alive and holds the whip, so
+  // there is no whip option here. Fiodor is fully outnumbered: the fight opens
+  // with a stress hit (size_step_down) and every failed round stacks another,
+  // shrinking the dice until — if it goes badly enough — he dies.
+  //
+  //   r1        → opening. stress hit #1. one check + (mushroom).
+  //     pass    → r2        (momentum)
+  //     fail    → r2_hurt   (on the back foot, stress hit #2)
+  //   r2        → the turn. press / outwit / (mushroom).
+  //     pass    → goblin_fight_won  or  goblin_fight_won_wit
+  //     fail    → r3_hurt   (one slip from death, stress hit)
+  //   r2_hurt   → desperate. dig in / (mushroom).
+  //     pass    → goblin_fight_won  (clawed it back)
+  //     fail    → goblin_death
+  //   r3_hurt   → last effort. one check + (mushroom).
+  //     pass    → goblin_fight_won
+  //     fail    → goblin_death
+
+  goblin_fight3_r1: {
+    id: 'goblin_fight3_r1',
+    narrative:
+      'No more talk. The big one comes first — of course he does, hunger makes him brave — and the other two slide wide to take your flanks. You give ground you can\'t afford to give just to keep all three in front of you. The fire spits at your heels. Three blades. One of you.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'I\'m sorry. I am. I don\'t want to but I\'m so — you smell like food and I\'m so hungry, I\'m sorry—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Three angles, and you can only watch two. Whichever way you face, something is at your back. That\'s the whole problem of three. It doesn\'t go away — you just choose which version of it to suffer.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Outnumbered three to one' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Then make the choosing cost them. You don\'t have to win every exchange. You have to be the most expensive meal this fire has ever tried to cook.',
+      },
+    ],
+    choices: [
+      {
+        id: 'crowd',
+        text: 'Get inside the big one\'s reach before the other two can set.',
+        nextNodeId: 'goblin_fight3_r2',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight3_r2_hurt' },
+      },
+      {
+        id: 'give_ground',
+        text: 'Keep all three in front of you. Read the room, not the blades.',
+        nextNodeId: 'goblin_fight3_r2',
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_fight3_r2_hurt' },
+      },
+      {
+        id: 'mushroom',
+        text: 'The corpse-veil. Hurl it into their faces and see what it does.',
+        nextNodeId: 'goblin_mushroom3',
+        requiresUnlock: 'poison',
+      },
+    ],
+  },
+
+  goblin_fight3_r2: {
+    id: 'goblin_fight3_r2',
+    narrative:
+      'The opening works. The big one overcommits and you turn him into a wall between you and the other two — for a breath, the fight is one-on-one instead of three-on-one. That breath is everything. Now you spend it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Bole, move — you\'re in the way, you great soft — Grit, it\'s using him, it\'s using Bole as a—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'You have him stacked. The other two have to come around or come through, and either way they have to come slow. This is the best the math will ever look. Don\'t admire it. Use it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DUNGEON LORE',
+        text: 'The fire. The rubble pile. The low ceiling over the passage mouth. A room is never just a room — it is a list of things that can be turned against the people standing in it. You read this one on the way in. Read it again, faster.',
+      },
+    ],
+    choices: [
+      {
+        id: 'press',
+        text: 'Press the advantage. Put the big one down and turn on the rest.',
+        nextNodeId: 'goblin_fight_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight3_r3_hurt' },
+      },
+      {
+        id: 'outwit',
+        text: 'Don\'t out-fight them. Out-think them — use the room.',
+        nextNodeId: 'goblin_fight_won_wit',
+        check: { skillKey: 'dungeonLore', failNodeId: 'goblin_fight3_r3_hurt' },
+      },
+      {
+        id: 'mushroom',
+        text: 'End the question. Throw the corpse-veil.',
+        nextNodeId: 'goblin_mushroom3',
+        requiresUnlock: 'poison',
+      },
+    ],
+  },
+
+  goblin_fight3_r2_hurt: {
+    id: 'goblin_fight3_r2_hurt',
+    narrative:
+      'It goes wrong fast. A blade you didn\'t track opens a hot line across your forearm and the big one\'s shoulder catches you in the chest and folds you back toward the fire. You get a boot under you before you go down, but only just. They smell it now — the turn. You can see them deciding you\'re already dead.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'There it is. There it IS — it\'s slowing, Grit, it\'s done, finish the long pale thing, finish it—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'That one\'s going to scar. If there\'s a later for it to scar in. The body is running out of the thing it runs on — you can feel the floor of it now, close under your feet.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Bleeding, outnumbered, fading' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'You still have the grey fungus. The old delvers swore the deep-things won\'t touch what\'s touched a corpse. Mad. Desperate. But you\'re a step from the floor and the mad thing is the only thing that hasn\'t been tried.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Not like this. Not on a goblin\'s fire over a buckle. Get up. One more. Make the little one wrong about you.',
+      },
+    ],
+    choices: [
+      {
+        id: 'dig_in',
+        text: 'Dig in. Refuse to be right about. One more exchange.',
+        nextNodeId: 'goblin_fight_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
+      {
+        id: 'mushroom',
+        text: 'The corpse-veil. Nothing left to lose — throw it.',
+        nextNodeId: 'goblin_mushroom3',
+        requiresUnlock: 'poison',
+      },
+    ],
+  },
+
+  goblin_fight3_r3_hurt: {
+    id: 'goblin_fight3_r3_hurt',
+    narrative:
+      'You had them and then you didn\'t. The opening you bought closed on your own arm; the big one shrugged off the blow that should have ended him and now all three are on you at once, and the fire is so close at your back you can feel it through your coat. One more wrong thing and there won\'t be a you to do the next thing.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Almost. You almost had it. For what it\'s worth — and it\'s worth nothing down here — you fought better than most that end up at this fire.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Everything hurts and the parts that don\'t hurt are the parts you should worry about. This is the bottom of it. There is no round after this one — there is a win, or there is the floor.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'One exchange from the floor' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'The fungus. Still. I will keep saying it until you do it or die not having. The grey on the wall grows where things died and stays where things fear to. Throw it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'last_effort',
+        text: 'Everything. Right now. Into the next swing.',
+        nextNodeId: 'goblin_fight_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
+      {
+        id: 'mushroom',
+        text: 'Listen to the mad voice. Throw the corpse-veil.',
+        nextNodeId: 'goblin_mushroom3',
+        requiresUnlock: 'poison',
+      },
+    ],
+  },
+
+  goblin_fight_won_wit: {
+    id: 'goblin_fight_won_wit',
+    narrative:
+      'You don\'t beat them. You beat the room. A shoulder into the rubble pile brings a slab of it down across the fire in a gout of sparks and choking ash, and for three heartbeats none of them can see a thing. Three heartbeats is a doorway. You\'re through the passage mouth and gone before the dust settles, their shouting boxed up behind a wall of grit and smoke. You didn\'t win the fight. You ended it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Where — WHERE — Grit, the smoke, I can\'t — don\'t let it through, don\'t you let it—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DUNGEON LORE',
+        text: 'A loose pile, a low fire, a narrow exit. The room was always going to do that if you asked it to. The trick is being the one who asks before anyone thinks to stop you.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'No feet behind us. The dust did the work the legs couldn\'t. Slow down. You\'re clear — and you didn\'t have to leave three names on that floor to do it.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_mushroom3: {
+    id: 'goblin_mushroom3',
+    narrative:
+      'You tear the grey handful from your coat and hurl it underhand into the firelight between you. It bursts on impact — a soft, awful pop and a cloud of pale spores and the smell of it, the smell of every dead thing the corpse-veil ever grew out of, rolling across the chamber thick as a held breath.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'That — Grit, that\'s the dead-smell, that\'s the smell from the deep rooms, the smell we don\'t — we don\'t GO where that smell is—',
+      },
+      // The throw always buys a beat of confusion, roll or no roll.
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'I TOLD you. Look at them. The body remembers what the mind pretends it forgot — every one of them was whelped on the rule: where it smells like that, you don\'t go. You just rewrote the room.',
+        bonuses: [
+          { type: 'size_step_up', skillKey: 'endurance', sourceDescription: 'Corpse-veil broke the room\'s nerve' },
+        ],
+      },
+      // Superstition decides how far the dread runs. Pass: it grips them and you
+      // strike clean. Fail: it just baffles them — still a gift, but a smaller,
+      // stranger one.
+      {
+        kind: 'passive',
+        skillKey: 'superstition',
+        successInterjection: {
+          speaker: 'SUPERSTITION',
+          text: 'It has them. All three frozen at the edge of the smell like dogs at a threshold they\'ve been beaten away from. They will not step into it. So you will. Now — while the old fear is wearing their faces.',
+        },
+        successBonuses: [
+          { type: 'ignore_stress', skillKey: 'endurance', sourceDescription: 'The goblins\' own dread holds them still' },
+        ],
+        failInterjection: {
+          speaker: 'HUNGER',
+          text: 'He\'s… eating it. The big one. There\'s a face full of corpse-spore and his tongue\'s out. The other two are just staring at him. Nobody is fighting anymore. Nobody knows what this is. Honestly? Neither do I. Take it.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'strike',
+        text: 'Into the gap the smell opened. End it.',
+        nextNodeId: 'goblin_fight_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
     ],
   },
 
@@ -751,6 +1032,20 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
   },
 
+  // ── Two-goblin fight ─────────────────────────────────────────────────────────
+  // Reached when the ambush kill doesn't close it out. Only NIM and BOLE remain
+  // — but they watched you put GRIT down, and NIM adapts. Shorter than the
+  // three-goblin fight (one stress hit, two rounds), and more survivable: Fiodor
+  // has already proven himself. NIM anticipates cleverness, so there's no
+  // out-think route here — escalation (the whip) is what he didn't see coming.
+  //
+  //   cornered_two → stand / (whip) / (mushroom). stress hit #1.
+  //     pass       → goblin_fight_two_won  or  goblin_fight_two_won_whip
+  //     fail       → r2_hurt   (stress hit #2)
+  //   r2_hurt      → last effort / (mushroom).
+  //     pass       → goblin_fight_two_won
+  //     fail       → goblin_death
+
   goblin_cornered_two: {
     id: 'goblin_cornered_two',
     narrative:
@@ -770,13 +1065,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
       {
         kind: 'voice',
-        speaker: 'SCARRING',
-        text: 'Different from three. You\'ve done worse than this and walked out. The math is better — use that.',
-      },
-      {
-        kind: 'voice',
-        speaker: 'ENDURANCE',
-        text: 'Plant. Stop retreating. Every step back is a step they don\'t have to take. Set your weight and make them come to you.',
+        speaker: 'DANGER SENSE',
+        text: 'Two, not three — but the small one\'s gone careful. He\'s not coming at you, he\'s coming at the spaces you keep leaving. Mind those spaces. He\'s already in them in his head.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Outnumbered, and the small one learns' },
+        ],
       },
       {
         kind: 'voice',
@@ -789,8 +1082,151 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'stand',
         text: 'Stop moving. Make them come to you.',
         nextNodeId: 'goblin_fight_two_won',
-        check: { skillKey: 'endurance', failNodeId: 'goblin_start' },
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight2_r2_hurt' },
       },
+      {
+        id: 'whip',
+        text: 'Crack the whip. Keep them at the end of it and pick them apart.',
+        nextNodeId: 'goblin_fight_two_won_whip',
+        check: { skillKey: 'spite', failNodeId: 'goblin_fight2_r2_hurt' },
+        requiresUnlock: 'whip',
+      },
+      {
+        id: 'mushroom',
+        text: 'The corpse-veil. Throw it and break whatever they think they know.',
+        nextNodeId: 'goblin_mushroom2',
+        requiresUnlock: 'poison',
+      },
+    ],
+  },
+
+  goblin_fight2_r2_hurt: {
+    id: 'goblin_fight2_r2_hurt',
+    narrative:
+      'The small one was right about the spaces. He slips into one you didn\'t mean to leave and his blade finds you low on the side — not deep, but enough, a bright wrong heat under the ribs. The big one is sobbing and swinging at the same time, which somehow makes him worse, not better. You\'re still up. You\'re not sure how much that\'s worth anymore.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'For Grit. For Grit, you hear me? You don\'t get to do that and just WALK—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Under the ribs. That\'s a careful wound — he meant it exactly there. The body\'s got one good answer left in it, maybe. Not two. Spend it right.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Cut low, one answer left' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'The grey fungus, if you still carry it. Now would be the hour the old delvers meant when they said keep it for the hour you stop being able to count on your hands.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Two of them and you put down the one who scared you. Don\'t you dare fall to the leftovers. One more. Make it the one that counts.',
+      },
+    ],
+    choices: [
+      {
+        id: 'last_effort',
+        text: 'The last good answer. All of it, right now.',
+        nextNodeId: 'goblin_fight_two_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
+      {
+        id: 'mushroom',
+        text: 'The corpse-veil. The hour the old ones meant. Throw it.',
+        nextNodeId: 'goblin_mushroom2',
+        requiresUnlock: 'poison',
+      },
+    ],
+  },
+
+  goblin_mushroom2: {
+    id: 'goblin_mushroom2',
+    narrative:
+      'You wrench the grey handful loose and throw it low, into the space between the two of them. It bursts grey and soft and the dead-smell unrolls across the firelight — the smell of the deep rooms, the rooms even goblins won\'t den in. The big one makes a sound like a kicked dog.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'NO — no, not that, Nim, that\'s the wrong-smell, that\'s the don\'t-go smell, why does it HAVE the—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'The big one\'s already gone — look at him, all that meat and he\'s a whelp again backing off the smell. The smart one\'s the question. He\'s smart enough to be more afraid of you than of an old story. We\'ll see which fear he listens to.',
+        bonuses: [
+          { type: 'size_step_up', skillKey: 'endurance', sourceDescription: 'Corpse-veil unmade the big one\'s nerve' },
+        ],
+      },
+      {
+        kind: 'passive',
+        skillKey: 'superstition',
+        successInterjection: {
+          speaker: 'SUPERSTITION',
+          text: 'There. Even the smart one. He knows the smell with the back of his neck, not the front of his head, and the back of his neck wins. They\'re both frozen at the edge of it. Walk in. They won\'t.',
+        },
+        successBonuses: [
+          { type: 'ignore_stress', skillKey: 'endurance', sourceDescription: 'Even NIM won\'t cross the dead-smell' },
+        ],
+        failInterjection: {
+          speaker: 'DECEPTION',
+          text: 'The small one\'s not buying it. You can see him do the sum — old smell, or the thing that killed Grit — and land on you. But the big one bought it for both of them, and a partner who\'s backing away from the air is a partner who isn\'t guarding a flank. That\'ll do. That\'ll have to.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'strike',
+        text: 'The big one\'s out of it. Take the small one while he\'s alone.',
+        nextNodeId: 'goblin_fight_two_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
+    ],
+  },
+
+  // ── Death ────────────────────────────────────────────────────────────────────
+  // The floor. Shared terminal for every fight that runs out of rounds.
+  // Narratively final — the voices get the last word and the big one,
+  // matter-of-fact, gets the last act. Mechanically it loops back to the start
+  // of the sequence; there is no checkpoint to scum.
+
+  goblin_death: {
+    id: 'goblin_death',
+    narrative:
+      'The body finds the floor before you decide to put it there. Stone, cold through the coat, and the fire too bright and sideways now, and the small one\'s voice somewhere above going on and on about a name you took from him. You are aware, distantly, that the going-on stops mattering. The chamber tilts. The light pulls back to a coin, then a pinhole.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'That\'s it. That\'s it, that\'s for Grit, that\'s — Bole, it\'s down, it\'s actually — we did it, we did the thing, we—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'THE DEEP',
+        text: 'Down here you were only ever a warm thing that walked. The dark has been patient with you the way it is patient with everything. It is not angry. It is not anything. It simply closes, the way water closes, and forgets the shape you made.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'I told you to throw the fungus. Or I didn\'t. It doesn\'t matter now which of us is remembering it true. That\'s the thing about being right too late — nobody is left to keep the score.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Is it — is it food now? It can be food now, can\'t it. I\'m so hungry, Nim. I\'ve been so hungry the whole time. It doesn\'t have a name anymore. It\'s just the meat.',
+      },
+    ],
+    choices: [
+      { id: 'restart', text: '—', nextNodeId: 'goblin_start', resetsSequence: true },
     ],
   },
 
