@@ -101,6 +101,15 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
+      { id: 'forward', text: 'You\'ve read the room.', nextNodeId: 'goblin_approach' },
+    ],
+  },
+
+  goblin_approach: {
+    id: 'goblin_approach',
+    narrative: 'The chamber is laid out below you. Three goblins, a cookfire, the passage you need. They still haven\'t seen you.',
+    beats: [],
+    choices: [
       {
         id: 'sneak',
         text: 'Wait for the gap in his circuit, then move.',
@@ -152,16 +161,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_slip',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
-      {
-        id: 'ambush',
-        text: 'You\'ve seen enough. Find the gap and close it before they know you\'re moving.',
-        nextNodeId: 'goblin_ambush_ready',
-      },
-      {
-        id: 'terrify',
-        text: 'Step out of the dark. Make them look at you.',
-        nextNodeId: 'goblin_terrify_ready',
-      },
+      { id: 'decide', text: 'You\'ve seen enough.', nextNodeId: 'goblin_approach' },
     ],
   },
 
@@ -356,7 +356,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'wait',
         text: 'Wait. Not yet.',
-        nextNodeId: 'goblin_observe',
+        nextNodeId: 'goblin_approach',
       },
     ],
   },
