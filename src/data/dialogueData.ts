@@ -138,12 +138,25 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_observe: {
     id: 'goblin_observe',
     narrative:
-      'You hold still and let the chamber teach you. The argument is about the bright thing — a buckle, maybe, or a coin. The pacing one isn\'t guarding anything; he\'s just the kind that can\'t sit. His circuit never changes. Fire, wall, passage, back. The longer you watch, the more the room feels less like a den and more like a clock.',
+      'You hold still and let the chamber teach you. The argument is about the bright thing — a buckle, maybe, or a coin. The pacing one isn\'t guarding anything; he\'s just the kind that can\'t sit. His circuit never changes. Fire, wall, passage, back. And there — coiled at his hip, slapping his thigh on every turn — a whip. The longer you watch, the more the room feels less like a den and more like a clock.',
     beats: [
       {
         kind: 'voice',
         speaker: 'DANGER SENSE',
         text: 'Now you\'re overstaying. Knowing the pattern is worth something. Standing here memorising it past the point of use is worth getting caught. The next turn he makes — that one\'s yours. Don\'t wait for the one after.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'scavenging',
+        successInterjection: {
+          speaker: 'SCAVENGING',
+          text: 'Braided leather, good length. Coiled left-side, single loop over the belt — it\'ll pull free in one move if you come in from the right angle. That\'s worth knowing before you commit.',
+        },
+        successBonus: {
+          type: 'size_step_up',
+          skillKey: 'scavenging',
+          sourceDescription: 'Already clocked the whip — angle, coil, grip',
+        },
       },
       {
         kind: 'voice',
@@ -152,6 +165,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         penalties: [
           { type: 'size_step_down', skillKey: 'dangerSense', sourceDescription: 'Hunger distracted Fiodor' },
           { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Hunger distracted Fiodor' },
+          { type: 'size_step_down', skillKey: 'reputation', sourceDescription: 'Hunger distracted Fiodor' },
         ],
       },
     ],
@@ -395,14 +409,14 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'fight',
         text: 'Finish it.',
-        nextNodeId: 'goblin_fight_won',
-        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+        nextNodeId: 'goblin_fight_two_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered_two' },
       },
       {
         id: 'run',
         text: 'They\'re still deciding. Move now — through the gap, before they close it.',
         nextNodeId: 'goblin_escaped',
-        check: { skillKey: 'dangerSense', failNodeId: 'goblin_cornered' },
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_cornered_two' },
       },
     ],
   },
@@ -454,6 +468,58 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_fight_two_won: {
+    id: 'goblin_fight_two_won',
+    narrative:
+      'Two more, after the first. They came in together and it was ugly and close, and at some point it stopped being a fight and became something you just had to outlast. When it ends you are still upright. Barely. The chamber is quiet. Three goblins down, each by a different method, none of them clean.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Different from three. Worse in some ways — they knew what you\'d done, and they came in angry. But the body held that too. File it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'That\'s going to leave a mark. Worth it. The passage is right there — it was always right there. You just had to earn it twice.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Catch your breath. Then go.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_cornered_two: {
+    id: 'goblin_cornered_two',
+    narrative:
+      'You don\'t make it. Two of them, not three — but they watched you put the first one down and they\'ve adjusted. No grinning. No posturing. They spread wide and come in low, blades out, making themselves expensive. This is a fair fight by dungeon standards, which means it\'s still bad.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Different from three. You\'ve done worse than this and walked out. The math is better — use that.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Plant. Stop retreating. Every step back is a step they don\'t have to take. Set your weight and make them come to you.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'They saw what you did to the first one and they\'re still here. Respect that. Then make them regret it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'stand',
+        text: 'Stop moving. Make them come to you.',
+        nextNodeId: 'goblin_fight_two_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_start' },
+      },
     ],
   },
 

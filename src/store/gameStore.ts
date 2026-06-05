@@ -332,7 +332,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
         revealedSomething = true
       } else {
         const skill = state.skills[beat.skillKey]
-        const size = parseInt(skill.size.slice(1))
+
+        // Consume a pending size_step_up bonus for this passive skill if present
+        const sizeUpIdx = bonuses.findIndex(
+          (b) => b.type === 'size_step_up' && b.skillKey === beat.skillKey
+        )
+        let effectiveSize = skill.size
+        if (sizeUpIdx >= 0) {
+          effectiveSize = stepUpSize(skill.size)
+          bonuses = bonuses.filter((_, i) => i !== sizeUpIdx)
+        }
+
+        const size = parseInt(effectiveSize.slice(1))
         const forceThis = force && !forceConsumed ? force : null
         if (forceThis) forceConsumed = true
         const rolls = forceThis
@@ -347,7 +358,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
             text: '',
             checkOutcome: 'passed',
             checkRolls: rolls,
-            checkDiceSize: skill.size,
+            checkDiceSize: effectiveSize,
             passive: true,
           })
           revealed.push({
