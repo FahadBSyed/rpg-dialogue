@@ -1352,31 +1352,41 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         external: true,
         text: 'Oh good. Another big thing with words. I\'ve seen big things with words before. The words always run out eventually. Then you get to see what was under them the whole time.',
       },
+      // Gated read: only surfaces if your Danger Sense is sharp enough to clock
+      // NIM as the thing that unravels you. Fail it and you go in blind.
       {
-        kind: 'voice',
-        speaker: 'DANGER SENSE',
-        text: 'NIM is the one who\'ll pull it apart if you give him anything to pull. He\'s reading you like a length of rope — testing for the weak braid, the place where you snap. Don\'t hand him an end.',
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: 'NIM is the one who\'ll pull it apart if you give him anything to pull. He\'s reading you like a length of rope — testing for the weak braid, the place where you snap. Don\'t hand him an end.',
+        },
       },
+      // Gated read: the actual answer key. High Deception sees that GRIT holds
+      // the decision and NIM is just noise. Fail it and you have to feel that out.
       {
-        kind: 'voice',
-        speaker: 'DECEPTION',
-        text: 'GRIT asked the question. GRIT holds the decision — not NIM, not BOLE. NIM is noise that GRIT is already half-tired of. Answer the one that matters. You don\'t have to do anything with the other two; GRIT will handle them the moment he decides they need handling.',
+        kind: 'passive',
+        skillKey: 'deception',
+        successInterjection: {
+          speaker: 'DECEPTION',
+          text: 'GRIT asked the question. GRIT holds the decision — not NIM, not BOLE. NIM is noise that GRIT is already half-tired of. Answer the one that matters. You don\'t have to do anything with the other two; GRIT will handle them the moment he decides they need handling.',
+        },
       },
     ],
     choices: [
       {
         id: 'answer_grit_past',
-        text: 'Answer GRIT. What you left in the last tunnel — one thing, specific, flat, past tense.',
+        text: '(to GRIT) "You asked what I am. Easier to tell you what I left. The last thing that cornered me is still in the tunnel behind you. Most of it."',
         nextNodeId: 'goblin_talk_grit',
       },
       {
         id: 'answer_grit_cost',
-        text: 'Answer the question he didn\'t ask: what it costs them to find out what you are.',
+        text: '(to GRIT) "You\'re already doing the sum. Three of you, one of me. Do the other one — what\'s left of three afterward, and whether a buckle was worth the difference."',
         nextNodeId: 'goblin_talk_grit',
       },
       {
         id: 'answer_room',
-        text: 'Speak to all three. Make it large enough for the room.',
+        text: '(to all three) "Listen close, all of you. You\'ve made one mistake tonight. The only thing left to settle is how much it costs."',
         nextNodeId: 'goblin_talk_room',
       },
     ],
@@ -1399,21 +1409,26 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         external: true,
         text: 'No. Don\'t let it talk. That\'s exactly what it wants — the talking, that\'s the whole trick of it. It\'s one thing and there\'s three of us and the math hasn\'t CHANGED, the math doesn\'t care how it talks, GRIT—',
       },
+      // Gated read: high Deception sees NIM's noise for what it is and tells you
+      // not to take the bait. Fail it and engaging him looks tempting.
       {
-        kind: 'voice',
-        speaker: 'DECEPTION',
-        text: 'NIM is scared. That\'s good — a scared thing makes noise because silence is what it would make if it were certain. Don\'t look at him. Not even to dismiss him. Let GRIT decide what NIM is worth, in this moment, without any help from you. GRIT is already doing the math. Let him finish it.',
+        kind: 'passive',
+        skillKey: 'deception',
+        successInterjection: {
+          speaker: 'DECEPTION',
+          text: 'NIM is scared. That\'s good — a scared thing makes noise because silence is what it would make if it were certain. Don\'t look at him. Not even to dismiss him. Let GRIT decide what NIM is worth, in this moment, without any help from you. GRIT is already doing the math. Let him finish it.',
+        },
       },
     ],
     choices: [
       {
         id: 'ignore_nim',
-        text: 'Keep your eyes on GRIT. Let NIM bark. Don\'t give him a single word.',
+        text: 'Eyes on GRIT — let NIM bark. "He\'s loud because he\'s scared. You\'re quiet because you\'re deciding. I\'ll wait on the one who\'s deciding."',
         nextNodeId: 'goblin_talk_close',
       },
       {
         id: 'address_nim',
-        text: 'One line at NIM — put him in the ground, then back to GRIT.',
+        text: 'Round on NIM. "You. The mouth. Keep going and you\'ll talk these two into something none of you walk out of."',
         nextNodeId: 'goblin_talk_nim_enter',
       },
     ],
@@ -1453,7 +1468,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     choices: [
       {
         id: 'back_to_grit',
-        text: 'Back to GRIT. Don\'t give NIM another word.',
+        text: 'Back to GRIT, and not another word for NIM. "Forget him. I was talking to you."',
         nextNodeId: 'goblin_talk_close',
       },
     ],
@@ -1499,12 +1514,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     choices: [
       {
         id: 'recover',
-        text: 'Stop. Find GRIT\'s eyes only. Say the one thing, stripped of all of it.',
+        text: 'Drop the performance. Find GRIT alone. "Strip all that. One thing, true: the last fire I walked up to is cold now. Yours doesn\'t have to be."',
         nextNodeId: 'goblin_talk_close',
       },
       {
         id: 'double_down',
-        text: 'More of it — harder, more specific, louder. They just need to feel the weight of it.',
+        text: 'Bigger. Louder. Make them feel the weight of it. "You have no idea what you\'ve let in here tonight—"',
         nextNodeId: 'goblin_cornered',
       },
     ],
@@ -1529,7 +1544,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     choices: [
       {
         id: 'hold',
-        text: 'Hold still. Let him decide.',
+        text: 'Say nothing more. Let it sit on him.',
         nextNodeId: 'goblin_threat_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_threat_fail' },
       },
@@ -1655,7 +1670,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     choices: [
       {
         id: 'recover',
-        text: 'Find GRIT\'s eyes. One thing, flat and specific. Undo the silence and replace it.',
+        text: 'Find GRIT. Flat and plain. "The quiet was the courtesy. Here\'s the part without it — you won\'t like what the quiet was keeping back."',
         nextNodeId: 'goblin_talk_close',
       },
     ],
