@@ -179,10 +179,9 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_ambush_ready',
       },
       {
-        id: 'terrify',
-        text: 'Step into the firelight. All the way. Make them look at what\'s walking toward them.',
-        nextNodeId: 'goblin_terrify_success',
-        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
+        id: 'confront',
+        text: 'Step into the firelight. All the way. Let them get a good look at what\'s walking toward them.',
+        nextNodeId: 'goblin_confront',
       },
     ],
   },
@@ -1260,12 +1259,70 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
   },
 
-  // ── Terrify path ─────────────────────────────────────────────────────────────
+  // ── Confrontation path ───────────────────────────────────────────────────────
+  // Step into the firelight and engage them openly. Once revealed there's no
+  // backing into the dark — every choice in goblin_confront is a committed
+  // check. Two ways to be "a threat too dangerous": wordless presence
+  // (Reputation → goblin_terrify_*) or spoken menace (Deception → goblin_threat_*).
+  //
+  // Future conversation angles slot in here as further goblin_confront choices:
+  //   - an ally to be put to use
+  //   - a different species of goblin himself
+  //   - turning the goblins on each other
+
+  goblin_confront: {
+    id: 'goblin_confront',
+    narrative:
+      'You step out of the dark and into the firelight — all the way, no hesitation, the way you walk toward a thing you mean to be the worst part of. The pacing one stops mid-circuit. The arguing pair look up. The bright thing drops, forgotten. For one held breath nobody in the chamber knows what happens next, you included. They\'re looking at you now. Whatever you do with the next three seconds, you do it in the light, and you don\'t get to take it back.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Hold. Nobody move — Nim, hand off the buckle. You. Long one. What in the dark are you, walking up to a fire like you own the dark it came out of.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'It\'s big, Grit. It\'s so big and it\'s not running. Things run. Why isn\'t it—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'You have their eyes. You do not yet have their fear — that\'s a separate thing and it has to be taken. The question is whether you take it with the name they might already know, or with a story you tell them right now.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'Two doors. Behind one, you say nothing and let them frighten themselves — costs nothing if your shape is enough. Behind the other, you talk, and you sell them a version of you worse than the real one — costs nothing if they can\'t hear the seams. Pick the door that fits what you actually are tonight.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Whichever door. Mean it all the way through. The half-meant ones are the ones that get you opened up on a goblin\'s floor.',
+      },
+    ],
+    choices: [
+      {
+        id: 'silent',
+        text: 'Say nothing. Let the silence and the size of you do the work.',
+        nextNodeId: 'goblin_terrify_success',
+        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
+      },
+      {
+        id: 'threat',
+        text: 'Speak — slow, certain — and tell them exactly what happens to things that corner you.',
+        nextNodeId: 'goblin_threat_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_threat_fail' },
+      },
+    ],
+  },
 
   goblin_terrify_success: {
     id: 'goblin_terrify_success',
     narrative:
-      'You step out of the dark and into the firelight. Upright, unhurried, the way something walks when it expects to be the most dangerous thing in the room. The pacing goblin stops mid-circuit. The arguing pair look up. The bright thing drops, forgotten. Something registers — maybe the name, maybe the posture, maybe the fact that you don\'t look like someone who expects to lose. One of them breaks first. Then the other two follow. The chamber empties toward the far passage in a shrieking scatter. The pacing one is last. He looks back once. You hold his gaze. He goes.',
+      'You don\'t say a word. You let the silence stretch and you let them fill it themselves — which is the whole cruelty of it, because whatever each of them imagines is worse than anything you could have said. You just stand there and be the thing in the doorway, upright and unhurried. Something registers — maybe the name, maybe the posture, maybe only that you don\'t look like something that expects to lose. One of them breaks first. Then the other two follow. The chamber empties toward the far passage in a shrieking scatter. The pacing one is last. He looks back once. You hold his gaze. He goes.',
     beats: [
       {
         kind: 'voice',
@@ -1303,7 +1360,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_terrify_fail: {
     id: 'goblin_terrify_fail',
     narrative:
-      'You step out of the dark and into the firelight. Upright, unhurried. The pacing goblin stops. The arguing pair look up. For a moment the chamber holds its breath — and then it doesn\'t. They don\'t break. The pacing one takes a step toward you. The arguing pair close together and then spread apart in a practiced way that says: this isn\'t the first time something bigger walked in and tried this. One of them grins. It\'s the kind of grin that lives in dungeons because everything that wore it survived long enough to grow teeth.',
+      'You give them the silence. The stillness, the unbothered weight, the wordless certainty of a thing that has done this before. And they look at it — and they don\'t break. The pacing one takes a step toward you. The arguing pair close together and then spread apart in a practiced way that says: this isn\'t the first time something bigger walked in and tried the quiet act on them. One of them grins. It\'s the kind of grin that lives in dungeons because everything that wore it survived long enough to grow teeth.',
     beats: [
       {
         kind: 'voice',
@@ -1335,6 +1392,78 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'fight', text: 'Then we do it the hard way.', nextNodeId: 'goblin_cornered' },
+    ],
+  },
+
+  goblin_threat_success: {
+    id: 'goblin_threat_success',
+    narrative:
+      'You talk. Low, unhurried, certain — the voice of someone reciting a thing they\'ve done before and fully expect to do again. You don\'t raise it; you don\'t have to. You tell them what the tunnels behind you look like now. You tell them what you were doing down here before they had the bad luck to be standing on your path. You give them small, specific, true-sounding things and you let the details do what details do — make a lie load-bearing. By the end of it the big one has stopped chewing and the small one has gone the colour of wet ash. You never learn whether a word of it landed as true. It lands as enough.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Grit — Grit, is it telling true? It sounds like true. It\'s got the true-voice, the flat one, the one Mother had when she said the thing about the well—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It\'s — shut up — it\'s bluffing, it has to be, look at the state of it, it\'s one and there\'s — Grit, tell him it\'s bluffing. Grit. Tell him.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'I\'ve heard that exact flat voice before. On a thing that wasn\'t bluffing. We\'re not staying to learn which one this is. Back. Leave the buckle — the buckle\'s not worth whatever that turns out to be.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'That\'s the whole art, and you just did it clean. Not the lie — the load-bearing detail. You handed them three true-sounding things and let them build the fourth one themselves, in their own heads, out of their own fear. They scared themselves with the thing you only pointed at.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'And you meant some of it. That\'s why it held — the seam they couldn\'t find was the part that wasn\'t a lie. Let them run. Let them carry it.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Let them go. Walk through.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_threat_fail: {
+    id: 'goblin_threat_fail',
+    narrative:
+      'You talk — and you hear it go thin in your own mouth before you\'re halfway through. Maybe it\'s a tremor you didn\'t catch in time. Maybe you oversold it, reached for one detail too many and they felt the reach. Goblins live in a world made entirely of other things\' threats; they can hear a real one the way you can hear your own name. This isn\'t one. The small one starts to laugh — a nasty, relieved little sound — and the others pick it up, and the laughter is worse than any blade, because it means the selling is over and the only thing left in the room is what\'s actually true.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Listen to it! "Things that corner me" — WE cornered YOU, you long stupid lamp-post, that\'s — it\'s words, Grit, it\'s only words, it hasn\'t got a single thing behind them—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Maybe. Maybe not. Doesn\'t matter now — the words stopped. Words always stop. Then we get to see what was holding them up. Fan out. Find out.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'Too much. You reached for the one detail too many and the weight of it cracked the floor. A lie this size has to be carried lighter than the truth, not heavier — and you carried it like it mattered. Nothing left to sell. Don\'t try to patch it; a patch now just shows them the hole.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Fine. They want to see what\'s under the words. Stop talking. Show them what\'s under the words.',
+      },
+    ],
+    choices: [
+      { id: 'fight', text: 'The talking\'s done. Do it the hard way.', nextNodeId: 'goblin_cornered' },
     ],
   },
 }
