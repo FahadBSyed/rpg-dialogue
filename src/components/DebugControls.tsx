@@ -3,9 +3,9 @@ import { useGameStore } from '../store/gameStore'
 import type { CheckOutcome } from '../store/gameStore'
 
 const LABELS: Record<CheckOutcome, string> = {
-  passed:          'P — PASS',
-  passed_stressed: 'S — STRESS',
-  failed:          'F — FAIL',
+  passed:          'PASS',
+  passed_stressed: 'STRESS',
+  failed:          'FAIL',
 }
 
 const COLORS: Record<CheckOutcome, string> = {
@@ -14,44 +14,69 @@ const COLORS: Record<CheckOutcome, string> = {
   failed:          '#9a3a3a',
 }
 
+const OUTCOMES: CheckOutcome[] = ['passed', 'passed_stressed', 'failed']
+const KEYS = ['p', 'f', 's']
+
 export function DebugControls() {
   const force = useGameStore((s) => s.debugForceOutcome)
+  const forcePassive = useGameStore((s) => s.debugForcePassiveOutcome)
   const setDebugForce = useGameStore((s) => s.setDebugForce)
+  const setDebugForcePassive = useGameStore((s) => s.setDebugForcePassive)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
-      if (e.key === 'p' || e.key === 'P') setDebugForce(force === 'passed' ? null : 'passed')
-      if (e.key === 'f' || e.key === 'F') setDebugForce(force === 'failed' ? null : 'failed')
-      if (e.key === 's' || e.key === 'S') setDebugForce(force === 'passed_stressed' ? null : 'passed_stressed')
+      const k = e.key.toLowerCase()
+      const idx = KEYS.indexOf(k)
+      if (idx < 0) return
+      const outcome = OUTCOMES[idx]
+      if (e.shiftKey) {
+        setDebugForcePassive(forcePassive === outcome ? null : outcome)
+      } else {
+        setDebugForce(force === outcome ? null : outcome)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [force, setDebugForce])
+  }, [force, forcePassive, setDebugForce, setDebugForcePassive])
 
   return (
     <div style={styles.bar}>
       <span style={styles.nodeId}>{currentNodeId}</span>
-      {(['passed', 'passed_stressed', 'failed'] as CheckOutcome[]).map((outcome) => {
+
+      <span style={styles.groupLabel}>active</span>
+      {OUTCOMES.map((outcome) => {
         const active = force === outcome
         return (
           <button
             key={outcome}
-            style={{
-              ...styles.btn,
-              borderColor: active ? COLORS[outcome] : '#2a2a1a',
-              color: active ? COLORS[outcome] : '#3a3a2a',
-            }}
+            style={{ ...styles.btn, borderColor: active ? COLORS[outcome] : '#2a2a1a', color: active ? COLORS[outcome] : '#3a3a2a' }}
             onClick={() => setDebugForce(active ? null : outcome)}
           >
             {LABELS[outcome]}
           </button>
         )
       })}
-      {force && (
-        <span style={{ ...styles.indicator, color: COLORS[force] }}>
-          next check forced → {force.replace('_', ' ')}
+
+      <span style={{ ...styles.groupLabel, marginLeft: '8px' }}>passive</span>
+      {OUTCOMES.map((outcome) => {
+        const active = forcePassive === outcome
+        return (
+          <button
+            key={outcome}
+            style={{ ...styles.btn, borderColor: active ? COLORS[outcome] : '#2a2a1a', color: active ? COLORS[outcome] : '#3a3a2a' }}
+            onClick={() => setDebugForcePassive(active ? null : outcome)}
+          >
+            {LABELS[outcome]}
+          </button>
+        )
+      })}
+
+      {(force || forcePassive) && (
+        <span style={{ ...styles.indicator, color: '#5a5040' }}>
+          {force && <span style={{ color: COLORS[force] }}>active → {force.replace('_', ' ')} </span>}
+          {forcePassive && <span style={{ color: COLORS[forcePassive] }}>passive → {forcePassive.replace('_', ' ')}</span>}
         </span>
       )}
     </div>
@@ -85,6 +110,13 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.04em',
     color: '#4a4a3a',
     marginRight: '4px',
+  },
+  groupLabel: {
+    fontFamily: 'monospace',
+    fontSize: '0.62rem',
+    letterSpacing: '0.06em',
+    color: '#3a3a2a',
+    textTransform: 'uppercase' as const,
   },
   indicator: {
     fontFamily: 'monospace',

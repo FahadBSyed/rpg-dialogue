@@ -98,6 +98,7 @@ interface GameState {
   pendingBonuses: ActiveBonus[]
   pendingPenalties: ActivePenalty[]
   debugForceOutcome: CheckOutcome | null
+  debugForcePassiveOutcome: CheckOutcome | null
   pendingRoll: PendingRoll | null
   pendingCommit: Partial<GameState> | null
   pendingFlashSkill: SkillKey | null
@@ -107,6 +108,7 @@ interface GameState {
   advanceBeat: () => void
   chooseOption: (choiceIndex: number) => void
   setDebugForce: (outcome: CheckOutcome | null) => void
+  setDebugForcePassive: (outcome: CheckOutcome | null) => void
   gotoNode: (nodeId: string) => void
   commitRoll: () => void
   fireResultFlash: (outcome: CheckOutcome) => void
@@ -261,6 +263,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   pendingBonuses: [],
   pendingPenalties: [],
   debugForceOutcome: null,
+  debugForcePassiveOutcome: null,
   pendingRoll: null,
   pendingCommit: null,
   pendingFlashSkill: null,
@@ -270,6 +273,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     set((s) => ({ resultFlash: { outcome, id: (s.resultFlash?.id ?? 0) + 1 } })),
 
   setDebugForce: (outcome) => set({ debugForceOutcome: outcome }),
+  setDebugForcePassive: (outcome) => set({ debugForcePassiveOutcome: outcome }),
 
   // Apply the result of an animated active check once its dice have landed.
   commitRoll: () => {
@@ -317,7 +321,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const revealed = [...state.revealedBeats]
     let bonuses = state.pendingBonuses
     let penalties = state.pendingPenalties
-    const force = state.debugForceOutcome
+    const force = state.debugForcePassiveOutcome
     let forceConsumed = false
     let revealedSomething = false
 
@@ -359,6 +363,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
         const size = parseInt(effectiveSize.slice(1))
         const forceThis = force && !forceConsumed ? force : null
         if (forceThis) forceConsumed = true
+        // For silent-pass passives (no successInterjection), treat a forced
+        // outcome as a noop on the success path since there's nothing to show.
         const rolls = guaranteed
           ? forcedRolls(skill.pool, size, 'passed')
           : forceThis
@@ -366,7 +372,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
           : rollDice(skill.pool, size)
         const passed = guaranteed || !rolls.some((r) => r === 1)
         cursor++
-        if (passed) {
+        if (passed && beat.successInterjection) {
           revealed.push({
             type: 'check',
             speaker: skill.name.toUpperCase(),
@@ -385,6 +391,11 @@ export const useGameStore = create<GameState>()((set, get) => ({
             bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
           }
           revealedSomething = true
+        } else if (passed) {
+          // Silent pass — apply bonuses without showing anything, continue loop.
+          if (beat.successBonuses?.length) {
+            bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
+          }
         } else if (beat.failInterjection) {
           revealed.push({
             type: 'check',
@@ -414,7 +425,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       revealedBeats: revealed,
       pendingBonuses: bonuses,
       pendingPenalties: penalties,
-      ...(forceConsumed ? { debugForceOutcome: null } : {}),
+      ...(forceConsumed ? { debugForcePassiveOutcome: null } : {}),
     })
   },
 

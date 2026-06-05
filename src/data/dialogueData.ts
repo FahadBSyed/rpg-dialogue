@@ -37,7 +37,8 @@ export interface PassiveBeat {
   kind: 'passive'
   id?: string
   skillKey: SkillKey
-  successInterjection: Interjection
+  // Omit for a silent pass — bonuses still apply, nothing shown.
+  successInterjection?: Interjection
   successBonuses?: Array<{ type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }>
   // Auto-passes if a size_step_up bonus for this skill is pending (the player
   // already did the work — the grab is certain).
@@ -168,10 +169,6 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         kind: 'passive',
         skillKey: 'hunger',
-        successInterjection: {
-          speaker: 'HUNGER',
-          text: 'That smells edible. I\'m going to leave it there.',
-        },
         failInterjection: {
           speaker: 'HUNGER',
           text: 'That smells edible, actually. The spit. To you, I mean. Not just to them. I\'m only mentioning it. I\'ll stop.',
@@ -268,7 +265,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'bolt',
         text: 'Kick the fire at them and bolt.',
         nextNodeId: 'goblin_escaped',
-        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+        check: { skillKey: 'endurance', failNodeId: 'goblin_run_cornered' },
       },
     ],
   },
@@ -299,7 +296,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'bolt',
         text: 'Bolt for the passage and outrun them.',
         nextNodeId: 'goblin_escaped',
-        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+        check: { skillKey: 'endurance', failNodeId: 'goblin_run_cornered' },
       },
     ],
   },
@@ -327,6 +324,32 @@ export const dialogueNodes: Record<string, DialogueNode> = {
 
   goblin_cornered: {
     id: 'goblin_cornered',
+    narrative:
+      'The gap closes. Three of them, blades out, cutting off every angle — the passage, the fire, the rubble pile. They move like they\'ve done this before, patient and unhurried. You\'ve seen this shape from the other side. The fire is at your back.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Here it is, then. The bill for the body, come due in a goblin warren of all the stupid places.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Then we don\'t run. We plant. We set our weight and we make ourselves the most expensive thing in this room.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'You are not dying down here over a shiny scrap of tin and somebody else\'s grin. Make them regret reaching for the blade. Make it the worst decision the little one ever made.',
+      },
+    ],
+    choices: [
+      { id: 'last_stand', text: 'Set your back to the fire and make them pay for it.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_run_cornered: {
+    id: 'goblin_run_cornered',
     narrative:
       'Your legs don\'t have it. The old knee buckles two strides in and the gap closes ahead of you. A goblin slides between you and the passage, blade held low, grinning the way small things grin when they\'ve suddenly become the larger problem. The other two fan out behind. The fire is at your back now. There is no more running to do.',
     beats: [
@@ -367,6 +390,17 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'SCARRING',
         text: 'The hesitation is what gets you killed. You learned that. Remember where you learned that.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'hunger',
+        failInterjection: {
+          speaker: 'HUNGER',
+          text: 'That thing on their spit. Still there. Still warm. I\'m just noting it.',
+        },
+        failPenalties: [
+          { type: 'size_step_down', skillKey: 'dangerSense', sourceDescription: 'Hunger distracted Fiodor' },
+        ],
       },
     ],
     choices: [
