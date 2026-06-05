@@ -410,7 +410,7 @@ function LogLine({ entry, muted, instant = true, onDone }: {
           fontStyle: 'italic',
           letterSpacing: '0.01em',
         }}>
-          <AnimatedText key={entry.text} text={entry.text} instant={instant} onDone={onDone} />
+          {'“'}<AnimatedText key={entry.text} text={entry.text} instant={instant} onDone={onDone} />{'”'}
         </span>
       </div>
     )

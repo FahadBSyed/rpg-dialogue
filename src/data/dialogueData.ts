@@ -311,7 +311,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'NIM',
         external: true,
-        text: 'It\'s… it tastes off. Bole. Bole, it tastes — why\'s it taste like that. Why\'s your mouth doing that.',
+        text: 'It\'s… it tastes off. Bole. Bole, it tastes — why\'s it taste like that? Why\'s your mouth doing that?',
       },
       {
         kind: 'voice',
@@ -1184,7 +1184,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'BOLE',
         external: true,
-        text: 'NO — no, not that, Nim, that\'s the wrong-smell, that\'s the don\'t-go smell, why does it HAVE the—',
+        text: 'NO — no, not that, Nim, that\'s the wrong-smell, that\'s the don\'t-go smell, why does it HAVE the—?',
       },
       {
         kind: 'voice',
@@ -1251,7 +1251,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'BOLE',
         external: true,
-        text: 'Is it — is it food now? It can be food now, can\'t it. I\'m so hungry, Nim. I\'ve been so hungry the whole time. It doesn\'t have a name anymore. It\'s just the meat.',
+        text: 'Is it — is it food now? It can be food now, can\'t it? I\'m so hungry, Nim. I\'ve been so hungry the whole time. It doesn\'t have a name anymore. It\'s just the meat.',
       },
     ],
     choices: [
@@ -1279,13 +1279,13 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'GRIT',
         external: true,
-        text: 'Hold. Nobody move — Nim, hand off the buckle. You. Long one. What in the dark are you, walking up to a fire like you own the dark it came out of.',
+        text: 'Hold. Nobody move — Nim, hand off the buckle. You. Long one. What in the dark are you, walking up to a fire like you own the dark it came out of?',
       },
       {
         kind: 'voice',
         speaker: 'BOLE',
         external: true,
-        text: 'It\'s big, Grit. It\'s so big and it\'s not running. Things run. Why isn\'t it—',
+        text: 'It\'s big, Grit. It\'s so big and it\'s not running. Things run. Why isn\'t it—?',
       },
       {
         kind: 'voice',
@@ -1787,7 +1787,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'NIM',
         external: true,
-        text: 'Why\'s it showing us. Things don\'t show you what they\'ve got, not down here, not unless there\'s a hook in it. What\'s the hook. There\'s always a hook in the showing.',
+        text: 'Why\'s it showing us? Things don\'t show you what they\'ve got, not down here, not unless there\'s a hook in it. What\'s the hook? There\'s always a hook in the showing.',
       },
       {
         kind: 'voice',
@@ -1846,13 +1846,13 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'NIM',
         external: true,
-        text: 'It said. It said. Things that hand you food in the dark, Bole — you know what wants you slow and full and not looking. What\'s in it. What. Is. In. It.',
+        text: 'It said. It said. Things that hand you food in the dark, Bole — you know what wants you slow and full and not looking. What\'s in it? What. Is. In. It?',
       },
       {
         kind: 'voice',
         speaker: 'GRIT',
         external: true,
-        text: '...That\'s the right question, actually. What is in it.',
+        text: '...That\'s the right question, actually. What is in it?',
       },
       {
         kind: 'voice',
@@ -1935,7 +1935,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         kind: 'voice',
         speaker: 'BOLE',
         external: true,
-        text: '...but what if it\'s not, though. Nim. What if it\'s a real ward and we said no and then the dark comes.',
+        text: '...but what if it\'s not, though? Nim. What if it\'s a real ward and we said no and then the dark comes?',
       },
       {
         kind: 'passive',
