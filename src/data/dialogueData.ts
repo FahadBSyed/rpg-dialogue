@@ -1312,7 +1312,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
       {
         id: 'threat',
-        text: 'Speak — slow, certain — and tell them exactly what happens to things that corner you.',
+        text: 'Take the floor before they can move. "Easy. Hands where they are. I came to talk — and you\'ll want to hear it before you decide anything."',
         nextNodeId: 'goblin_talk_open',
       },
     ],
