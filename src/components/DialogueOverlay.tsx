@@ -410,6 +410,9 @@ export function DialogueOverlay() {
   const [narratorAnimating, setNarratorAnimating] = useState(true)
   const [lastBeatDone, setLastBeatDone] = useState(true)
   const [instant, setInstant] = useState(false)
+  // True while we're waiting for the post-check pause to elapse before starting
+  // the narrator animation on the new node.
+  const [postCheckDelay, setPostCheckDelay] = useState(false)
 
   // The last revealed beat is always the animating one — computed inline, not via effect,
   // so the new LogLine sees instant=false on its very first render.
@@ -432,11 +435,22 @@ export function DialogueOverlay() {
   const lastVoice = [...revealedBeats].reverse().find((e) => e.type === 'interjection')
   const activeSpeaker = lastVoice ? lastVoice.speaker : null
 
-  // Restart narrator animation on each new node
+  // Restart narrator animation on each new node. After a check, hold the text
+  // invisible briefly so it doesn't start mid-dice-animation.
   useEffect(() => {
+    const lastEntry = dialogueLog[dialogueLog.length - 1]
+    const cameFromCheck = lastEntry?.type === 'check'
     setNarratorAnimating(true)
     setLastBeatDone(true)
     setInstant(false)
+    if (cameFromCheck) {
+      setPostCheckDelay(true)
+      const t = setTimeout(() => setPostCheckDelay(false), 350)
+      return () => clearTimeout(t)
+    } else {
+      setPostCheckDelay(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentNodeId])
 
   // Mark the incoming beat as not done so isAnimating stays true until it finishes
@@ -507,16 +521,19 @@ export function DialogueOverlay() {
           {/* Divider between history and current */}
           {dialogueLog.length > 0 && <div style={styles.divider} />}
 
-          {/* Current narrator line */}
-          <LogLine
-            entry={{ type: 'narrative', speaker: 'NARRATOR', text: currentNode.narrative }}
-            muted={false}
-            instant={!narratorAnimating || instant}
-            onDone={() => { setNarratorAnimating(false); setInstant(false) }}
-          />
+          {/* Current narrator line — suppressed during the post-check pause so
+              the AnimatedText mounts only after the dice have cleared */}
+          {!postCheckDelay && (
+            <LogLine
+              entry={{ type: 'narrative', speaker: 'NARRATOR', text: currentNode.narrative }}
+              muted={false}
+              instant={!narratorAnimating || instant}
+              onDone={() => { setNarratorAnimating(false); setInstant(false) }}
+            />
+          )}
 
           {/* Beats revealed so far this node (voice lines + passed passives) */}
-          {revealedBeats.map((entry, i) => (
+          {!postCheckDelay && revealedBeats.map((entry, i) => (
             <LogLine
               key={i}
               entry={entry}
@@ -533,7 +550,7 @@ export function DialogueOverlay() {
         <div style={styles.choicesArea}>
           <div style={styles.fadeEdge} />
           <div style={styles.choices}>
-            {!allBeatsSeen ? (
+            {postCheckDelay ? null : !allBeatsSeen ? (
               /* More beats to reveal — show the next voice's speaker, or a
                  neutral prompt for an (untelegraphed) passive check */
               <button
