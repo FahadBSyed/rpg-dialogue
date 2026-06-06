@@ -367,15 +367,14 @@ class DungeonScene extends Phaser.Scene {
   private checkGoblinTrigger() {
     if (this.goblinTriggered || this.currentRoom !== 'north') return
 
-    for (const container of this.goblinContainers) {
-      const dx = this.player.x - container.x
-      const dy = this.player.y - container.y
-      if (Math.sqrt(dx * dx + dy * dy) < 60) {
-        this.goblinTriggered = true
-        this.moveTarget = null
-        window.__rpgCallbacks?.startScenario('goblin_confront', 'goblin')
-        break
-      }
+    // Trigger box spans the full width of the north room and 90% of its height,
+    // measured from the top — so the player can't slip past the goblins. Only
+    // the bottom 10% (the entry strip nearest the passage) is safe.
+    const boxBottom = 600 * 0.9 // y = 540
+    if (this.player.y <= boxBottom) {
+      this.goblinTriggered = true
+      this.moveTarget = null
+      window.__rpgCallbacks?.startScenario('goblin_confront', 'goblin')
     }
   }
 
