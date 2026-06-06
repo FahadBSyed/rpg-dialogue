@@ -28,6 +28,18 @@ const PLAYER_FIRE  = { x: 380, y: 448 }  // stepped into the firelight
 const ENCIRCLE     = { x: 380, y: 372, r: 74 }
 const PASSAGE_TOP  = { x: 400, y: 48 }   // the onward (north) passage mouth
 
+// Combat staging. The player fights from below (back toward the threshold/fire)
+// upward toward the goblins, who hold the line between Fiodor and the passage.
+const COMBAT = {
+  player:     { x: 400, y: 462 },          // squared up, weight set
+  playerWall: { x: 250, y: 470 },          // backed into the left wall (brace)
+  // Three-goblin flanking formation: BOLE forward and central, NIM left,
+  // GRIT right — they slide wide to take the angles.
+  bole: { x: 400, y: 392 },
+  nim:  { x: 300, y: 410 },
+  grit: { x: 500, y: 410 },
+}
+
 // ── World layout ─────────────────────────────────────────────────────────────
 //
 //   Deep room   (empty):    x=0..800,   y=-600..0   (warped to after escape)
@@ -617,14 +629,33 @@ class DungeonScene extends Phaser.Scene {
     // Caught, then choosing to rise into the light — a confront, not the jolt.
     if (id === 'goblin_spotted_stand') return this.animConfront()
     if (id.includes('caught') || id.includes('spotted')) return this.animSpotted()
+    // Two-goblin standoff vs. the full three-goblin encircle.
+    if (id === 'goblin_cornered_two') return this.animConvergeTwo()
     if (id.includes('cornered')) return this.animEncircle()
-    if (id.includes('ambush') || id.includes('fight')) return this.animFight()
+
+    // ── Bespoke combat staging — each reads the node's tactical moment ──────────
+    if (id === 'goblin_fight3_r1') return this.animFightOpen()
+    if (id === 'goblin_fight3_r2') return this.animStackBole()
+    if (id === 'goblin_fight3_r2_hurt' || id === 'goblin_fight2_r2_hurt') return this.animPlayerHit()
+    if (id === 'goblin_fight3_r3_hurt') return this.animConverge()
+    if (id === 'goblin_fight_brace') return this.animBrace()
+    if (id === 'goblin_fight_spit') return this.animGrabSpit()
+    if (id === 'goblin_fight_feign') return this.animFeign()
+    if (id === 'goblin_ambush_fail') return this.animAmbushFail()
+    if (id === 'goblin_ambush_overextended') return this.animOverextend()
+    // The corpse-veil bursts between Fiodor and the goblins — not in the fire.
+    if (id === 'goblin_mushroom2' || id === 'goblin_mushroom3') return this.animSporeBurst()
+    // Mid-fight talk: the room holds its breath at the edge of violence.
+    if (id.startsWith('goblin_fight_talk') || id === 'goblin_fight_bole_appeal' || id === 'goblin_fight_bole_plea') return this.animHold()
+
+    if (id.includes('ambush') || id.includes('fight')) return this.animFight() // generic fallback
     if (id.includes('divide')) return this.animDivide()
     // The poison action is beat-timed (see playBeatAnim); at entry this node
     // just holds the ambient fireside framing.
     if (id === 'goblin_poison_success') return this.animObserve()
     if (id.includes('sneak') || id.includes('slip')) return this.animSneak()
-    if (id.includes('mushroom') || id.includes('poison') || id.includes('bribe')) return this.animToss()
+    // Producing the grey handful as a bribe — held out, not thrown.
+    if (id.includes('bribe')) return this.animOffer()
     if (id === 'goblin_start' || id === 'goblin_approach' || id === 'goblin_observe') return this.animObserve()
     if (id.includes('confront') || id.endsWith('_open')) return this.animConfront()
     return this.animBanter()
@@ -754,6 +785,220 @@ class DungeonScene extends Phaser.Scene {
     })
   }
 
+  // ── Combat staging helpers ─────────────────────────────────────────────────────
+
+  // Move one named goblin into a combat slot, if it's still alive.
+  private placeGoblin(c: Phaser.GameObjects.Container, pos: { x: number; y: number }, delay: number, dur: number, ease = 'Sine.easeInOut') {
+    if (!this.aliveGoblins.includes(c)) return
+    this.aTween({ targets: c, x: pos.x, y: pos.y, duration: dur, delay, ease })
+  }
+
+  // Snap the cast into the squared-up fighting formation: player below, the
+  // three goblins fanned to BOLE-centre / NIM-left / GRIT-right (dead ones skip).
+  private formUp(dur = 420) {
+    this.player.setAlpha(1)
+    this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y, duration: dur, ease: 'Sine.easeInOut' })
+    this.placeGoblin(this.boleContainer, COMBAT.bole, 0, dur)
+    this.placeGoblin(this.nimContainer, COMBAT.nim, 0, dur)
+    this.placeGoblin(this.gritContainer, COMBAT.grit, 0, dur)
+  }
+
+  // `a` drives in to within `depth` of `b` and snaps back — a landed blow.
+  private lungeInto(a: Phaser.GameObjects.Container, b: Phaser.GameObjects.Arc, depth: number, dur: number) {
+    const dx = b.x - a.x, dy = b.y - a.y
+    const d = Math.hypot(dx, dy) || 1
+    this.aTween({
+      targets: a,
+      x: a.x + (dx / d) * (d - depth),
+      y: a.y + (dy / d) * (d - depth),
+      duration: dur, yoyo: true, ease: 'Quad.easeIn',
+    })
+  }
+
+  // A red bloom over the player — a wound landing.
+  private flashWound() {
+    const f = this.add.circle(this.player.x, this.player.y, 15, 0xc0392b, 0.6).setDepth(7)
+    this.aTween({ targets: f, alpha: 0, scaleX: 1.8, scaleY: 1.8, duration: 380, ease: 'Quad.easeOut', onComplete: () => f.destroy() })
+  }
+
+  // A slow, tense breathing pulse on the living goblins — a held standoff.
+  private menacePulse() {
+    this.aliveGoblins.forEach((g, i) =>
+      this.tweens.add({ targets: g, scaleX: 1.07, scaleY: 1.07, duration: 640, yoyo: true, repeat: -1, delay: i * 130, ease: 'Sine.easeInOut' }))
+  }
+
+  // ── Bespoke combat moments ─────────────────────────────────────────────────────
+
+  // r1: the big one comes first; the other two slide wide to take the flanks.
+  private animFightOpen() {
+    this.formUp(480)
+    this.aLater(520, () => {
+      const b = this.boleContainer
+      if (this.aliveGoblins.includes(b)) this.aTween({ targets: b, y: b.y + 22, duration: 300, yoyo: true, ease: 'Quad.easeInOut' })
+    })
+  }
+
+  // r2: BOLE overcommits; the player slips aside and stacks him between you and
+  // the other two — for a breath it's one-on-one.
+  private animStackBole() {
+    this.player.setAlpha(1)
+    this.aTween({ targets: this.player, x: COMBAT.player.x - 78, y: COMBAT.player.y, duration: 380, ease: 'Quad.easeOut' })
+    const b = this.boleContainer
+    if (this.aliveGoblins.includes(b)) this.aTween({ targets: b, x: COMBAT.player.x - 36, y: COMBAT.player.y - 6, duration: 440, ease: 'Quad.easeIn' })
+    // the other two are stalled on the far side of BOLE, away from the player
+    this.placeGoblin(this.nimContainer, { x: 430, y: 360 }, 0, 500)
+    this.placeGoblin(this.gritContainer, { x: 480, y: 356 }, 0, 500)
+  }
+
+  // r2_hurt / fight2_r2_hurt: a blade you didn't track lands and folds you back
+  // toward the fire.
+  private animPlayerHit() {
+    this.formUp(260)
+    const attacker = this.aliveGoblins.includes(this.nimContainer) ? this.nimContainer : this.aliveGoblins[0]
+    if (!attacker) return
+    this.aLater(280, () => {
+      this.lungeInto(attacker, this.player, 14, 150)
+      this.aLater(110, () => {
+        this.flashWound()
+        this.cameras.main.shake(170, 0.008)
+        // folded back toward the fire (upward)
+        this.aTween({ targets: this.player, y: this.player.y - 24, duration: 170, yoyo: true, ease: 'Quad.easeOut' })
+      })
+    })
+  }
+
+  // r3_hurt: all three on you at once, the fire at your back.
+  private animConverge() {
+    this.player.setAlpha(1)
+    this.aTween({ targets: this.player, x: PLAYER_FIRE.x, y: PLAYER_FIRE.y, duration: 360, ease: 'Sine.easeInOut' })
+    const n = this.aliveGoblins.length || 1
+    this.aliveGoblins.forEach((g, i) => {
+      const ang = -Math.PI / 2 + i * ((2 * Math.PI) / n)
+      const gx = PLAYER_FIRE.x + Math.cos(ang) * 56
+      const gy = PLAYER_FIRE.y + Math.sin(ang) * 56
+      this.aTween({
+        targets: g, x: gx, y: gy, duration: 440, delay: i * 60, ease: 'Quad.easeIn',
+        onComplete: () => this.tweens.add({ targets: g, scaleX: 1.1, scaleY: 1.1, duration: 480, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }),
+      })
+    })
+  }
+
+  // brace: back to the wall, the fire and rubble covering the flanks; two angles
+  // instead of three.
+  private animBrace() {
+    this.player.setAlpha(1)
+    this.aTween({ targets: this.player, x: COMBAT.playerWall.x, y: COMBAT.playerWall.y, duration: 520, ease: 'Sine.easeInOut' })
+    this.placeGoblin(this.boleContainer, { x: 360, y: 372 }, 0, 520)
+    this.placeGoblin(this.nimContainer, { x: 330, y: 430 }, 80, 520)
+    this.placeGoblin(this.gritContainer, { x: 420, y: 410 }, 0, 520)
+    this.aLater(580, () => this.menacePulse())
+  }
+
+  // spit: dart to the fire, take the burning brand, drive them back from the heat.
+  private animGrabSpit() {
+    this.player.setAlpha(1)
+    this.aTween({
+      targets: this.player, x: FIRE_POS.x, y: FIRE_POS.y + 36, duration: 320, ease: 'Quad.easeOut',
+      onComplete: () => {
+        const flare = this.add.circle(FIRE_POS.x, FIRE_POS.y + 24, 7, 0xff9030, 0.95).setDepth(7)
+        this.aTween({ targets: flare, alpha: 0, scaleX: 1.6, scaleY: 1.6, duration: 520, onComplete: () => flare.destroy() })
+        this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y, duration: 340, delay: 100, ease: 'Sine.easeInOut' })
+      },
+    })
+    // the goblins pull back from the arm of fire
+    this.aliveGoblins.forEach((g, i) => {
+      const dir = g.x < FIRE_POS.x ? -1 : 1
+      this.aTween({ targets: g, x: g.x + dir * 28, y: g.y - 16, duration: 380, delay: 220 + i * 50, ease: 'Quad.easeOut' })
+    })
+  }
+
+  // feign: sell more damage than there is — one pulls up, then NIM reads it and
+  // they all close.
+  private animFeign() {
+    this.player.setAlpha(1)
+    const baseY = this.player.y
+    this.aTween({
+      targets: this.player, y: baseY + 18, scaleX: 0.9, scaleY: 0.82, angle: -8, duration: 300, ease: 'Quad.easeOut',
+      onComplete: () => this.aTween({ targets: this.player, y: baseY, scaleX: 1, scaleY: 1, angle: 0, duration: 240, delay: 260, ease: 'Quad.easeIn' }),
+    })
+    const b = this.boleContainer
+    if (this.aliveGoblins.includes(b)) this.aTween({ targets: b, y: b.y - 10, duration: 200, yoyo: true, delay: 120 })
+    // then they surge a step in
+    this.aLater(560, () => this.aliveGoblins.forEach((g, i) => this.aTween({ targets: g, y: g.y + 22, duration: 240, delay: i * 40, ease: 'Quad.easeIn' })))
+  }
+
+  // mid-fight talk: the room holds its breath at the edge of violence.
+  private animHold() {
+    this.player.setAlpha(1)
+    this.menacePulse()
+  }
+
+  // ambush_fail: GRIT turns into your charge; all three jolt awake and form a
+  // line across the way out.
+  private animAmbushFail() {
+    this.player.setAlpha(1)
+    this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y + 26, duration: 300, ease: 'Quad.easeOut' })
+    this.aliveGoblins.forEach((g, i) => this.aTween({ targets: g, scaleX: 1.25, scaleY: 1.25, duration: 110, yoyo: true, delay: i * 40 }))
+    const line = [{ x: 300, y: 358 }, { x: 400, y: 348 }, { x: 500, y: 358 }]
+    this.aliveGoblins.forEach((g, i) => this.aTween({ targets: g, x: line[i % 3].x, y: line[i % 3].y, duration: 420, delay: 160 + i * 60, ease: 'Quad.easeOut' }))
+  }
+
+  // ambush_overextended: the strike sticks; your weight commits and NIM slips
+  // inside the guard before you can recover.
+  private animOverextend() {
+    this.player.setAlpha(1)
+    this.aTween({
+      targets: this.player, x: FIRE_POS.x, y: FIRE_POS.y + 48, scaleX: 1.2, scaleY: 0.86, duration: 300, ease: 'Quad.easeIn',
+      onComplete: () => this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y, scaleX: 1, scaleY: 1, duration: 520, delay: 420, ease: 'Sine.easeInOut' }),
+    })
+    const nim = this.nimContainer
+    if (this.aliveGoblins.includes(nim)) this.aTween({ targets: nim, x: FIRE_POS.x - 12, y: FIRE_POS.y + 70, duration: 360, delay: 260, ease: 'Quad.easeIn' })
+    const bole = this.boleContainer
+    if (this.aliveGoblins.includes(bole)) this.aTween({ targets: bole, x: 432, y: 332, duration: 420, delay: 320, ease: 'Sine.easeInOut' })
+  }
+
+  // cornered_two: NIM and BOLE spread wide and come in low.
+  private animConvergeTwo() {
+    this.player.setAlpha(1)
+    this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y, duration: 380, ease: 'Sine.easeInOut' })
+    this.placeGoblin(this.nimContainer, { x: 320, y: 408 }, 60, 480)
+    this.placeGoblin(this.boleContainer, { x: 480, y: 408 }, 0, 480)
+    this.aLater(520, () => this.menacePulse())
+  }
+
+  // The corpse-veil hurled into the space between you and them: it bursts into a
+  // pale spore cloud and the goblins recoil from the dead-smell and freeze.
+  private animSporeBurst() {
+    this.player.setAlpha(1)
+    const burst = { x: 400, y: 396 }
+    const proj = this.add.circle(this.player.x, this.player.y, 5, 0xb8b89a).setDepth(7)
+    this.aTween({
+      targets: proj, x: burst.x, y: burst.y, duration: 300, ease: 'Quad.easeOut',
+      onComplete: () => {
+        proj.destroy()
+        const cloud = this.add.circle(burst.x, burst.y, 8, 0xcfc8b0, 0.55).setDepth(6)
+        this.aTween({ targets: cloud, scaleX: 9, scaleY: 7, alpha: 0, duration: 900, ease: 'Quad.easeOut', onComplete: () => cloud.destroy() })
+        this.aliveGoblins.forEach((g, i) => {
+          const dir = g.x < burst.x ? -1 : 1
+          this.aTween({
+            targets: g, x: g.x + dir * 26, y: g.y - 30, duration: 420, delay: i * 60, ease: 'Quad.easeOut',
+            onComplete: () => this.tweens.add({ targets: g, scaleX: 0.94, scaleY: 0.94, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' }),
+          })
+        })
+      },
+    })
+  }
+
+  // Producing the grey handful as a bribe — brought out slow and held forward,
+  // not thrown. The goblins lean in, wary.
+  private animOffer() {
+    this.aTween({ targets: this.player, x: PLAYER_FIRE.x, y: PLAYER_FIRE.y, alpha: 1, duration: 500, ease: 'Sine.easeInOut' })
+    const orb = this.add.circle(PLAYER_FIRE.x, PLAYER_FIRE.y - 18, 5, 0xb8b89a, 0).setDepth(7)
+    this.aTween({ targets: orb, alpha: 1, y: orb.y - 10, duration: 600, delay: 300, ease: 'Sine.easeOut' })
+    this.aLater(720, () => this.aliveGoblins.forEach((g, i) => this.aTween({ targets: g, y: g.y + 8, duration: 300, yoyo: true, delay: i * 50 })))
+    this.aLater(2000, () => orb.destroy())
+  }
+
   private animDivide() {
     // Player edges toward the passage; NIM and BOLE round on each other.
     this.tweens.add({ targets: this.player, x: 175, y: 300, alpha: 0.9, duration: 900, ease: 'Sine.easeInOut' })
@@ -789,20 +1034,6 @@ class DungeonScene extends Phaser.Scene {
       },
     })
     // Goblins remain oblivious — banter as usual.
-    this.animBanter()
-  }
-
-  private animToss() {
-    // Lob a pale orb into the fire; the goblins flinch at it.
-    const proj = this.add.circle(this.player.x, this.player.y, 5, 0xbfcf9a).setDepth(6)
-    this.tweens.add({
-      targets: proj, x: FIRE_POS.x, y: FIRE_POS.y, duration: 480, ease: 'Quad.easeOut',
-      onComplete: () => {
-        proj.destroy()
-        this.aliveGoblins.forEach((g, i) =>
-          this.tweens.add({ targets: g, scaleX: 1.2, scaleY: 1.2, duration: 150, yoyo: true, delay: i * 40 }))
-      },
-    })
     this.animBanter()
   }
 
