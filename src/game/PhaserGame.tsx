@@ -65,11 +65,11 @@ class DungeonScene extends Phaser.Scene {
   private inDialogue = false
   private goblinTriggered = false
   // Set once the goblin chamber has been resolved and left. Makes the goblin
-  // room one-way: any attempt to walk back in raises the refusal dialogue.
+  // room one-way (refusal) when escaped, or fully open when cleared by killing.
   private goblinDone = false
-
-  // Dark overlay shown while in dialogue mode
-  private overlayRect!: Phaser.GameObjects.Rectangle
+  private goblinOutcome: 'escaped' | 'cleared' | null = null
+  // Splatter graphics drawn in place of the goblins once the room is cleared.
+  private splatterGfx?: Phaser.GameObjects.Graphics
 
   constructor() {
     super({ key: 'DungeonScene' })
@@ -81,16 +81,6 @@ class DungeonScene extends Phaser.Scene {
 
     // Player — blue circle
     this.player = this.add.circle(400, 900, 10, 0x5599ff).setDepth(5)
-
-    // Dialogue overlay (full-world size so it covers everything when panned)
-    this.overlayRect = this.add
-      .rectangle(
-        WORLD_BOUNDS.x + WORLD_BOUNDS.w / 2,
-        WORLD_BOUNDS.y + WORLD_BOUNDS.h / 2,
-        WORLD_BOUNDS.w, WORLD_BOUNDS.h, 0x000000,
-      )
-      .setAlpha(0)
-      .setDepth(20)
 
     // Custom cursor graphics
     this.cursorGfx = this.add.graphics().setDepth(100)
@@ -325,9 +315,11 @@ class DungeonScene extends Phaser.Scene {
     const inEastCorridor  = wy >= ey1 && wy <= ey2 && wx >= 740 && wx <= 860
 
     if (this.currentRoom === 'deep') {
-      // The deep room's only door leads back to the goblins — let the player
-      // approach it so the refusal can fire, but never auto-snap them through.
-      if (inDeepCorridor) return { x: clamp(wx, dx1 + 8, dx2 - 8), y: -25 }
+      if (inDeepCorridor) {
+        // If the chamber was cleared the door is open — snap through into north.
+        // If escaped, stop just short so the refusal can fire.
+        return { x: clamp(wx, dx1 + 8, dx2 - 8), y: this.goblinOutcome === 'cleared' ? 40 : -25 }
+      }
       if (wx >= pad && wx <= 800 - pad && wy >= -600 + pad && wy <= -pad)
         return { x: wx, y: wy }
       return null
@@ -341,6 +333,9 @@ class DungeonScene extends Phaser.Scene {
     }
     if (this.currentRoom === 'north') {
       if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 640 } // into center
+      // Once cleared, the north passage to the deep room is open.
+      if (this.goblinOutcome === 'cleared' && inDeepCorridor)
+        return { x: clamp(wx, dx1 + 8, dx2 - 8), y: -40 } // into deep
       if (wx >= pad && wx <= 800 - pad && wy >= pad && wy <= 600 - pad)
         return { x: wx, y: wy }
       return null
@@ -362,8 +357,12 @@ class DungeonScene extends Phaser.Scene {
     const { y1: ey1, y2: ey2 } = PASS_E
 
     if (this.currentRoom === 'deep') {
-      // Approaching the door back to the goblins: refuse, and stop short.
-      if (py >= -30 && px >= dx1 - 10 && px <= dx2 + 10) {
+      if (py >= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
+        if (this.goblinOutcome === 'cleared') {
+          this.enterRoom('north', 400, 40) // door open — walk back into the chamber
+        }
+      } else if (this.goblinOutcome === 'escaped' && py >= -30 && px >= dx1 - 10 && px <= dx2 + 10) {
+        // Goblins still alive behind you: refuse, and stop short.
         this.moveTarget = null
         this.player.setPosition(this.player.x, -70)
         window.__rpgCallbacks?.openRefusal()
@@ -377,9 +376,9 @@ class DungeonScene extends Phaser.Scene {
     } else if (this.currentRoom === 'north') {
       if (py >= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
         this.enterRoom('center', 400, 640)
+      } else if (this.goblinOutcome === 'cleared' && py <= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
+        this.enterRoom('deep', 400, -40) // cleared — north passage open to the deep
       }
-      // The deep↔north door only opens via the post-escape warp; the player
-      // never walks north through it (the goblin trigger fires first).
     } else if (this.currentRoom === 'east') {
       if (px <= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
         this.enterRoom('center', 760, 900)
@@ -424,25 +423,59 @@ class DungeonScene extends Phaser.Scene {
   // ── Warp (called from React on a warpSignal) ─────────────────────────────────
 
   warpTo(target: string) {
+    this.goblinDone = true
+    this.goblinTriggered = true
+    this.moveTarget = null
+
     if (target === 'deep') {
-      this.goblinDone = true
-      this.goblinTriggered = true
+      // Escaped/talked past — the goblins are still alive behind you. Warp into
+      // the deep room; the chamber becomes one-way (refusal on re-entry).
+      this.goblinOutcome = 'escaped'
       this.currentRoom = 'deep'
-      this.moveTarget = null
       this.player.setPosition(ROOM_CAMERA.deep.x, ROOM_CAMERA.deep.y)
       this.cameras.main.centerOn(ROOM_CAMERA.deep.x, ROOM_CAMERA.deep.y)
+    } else if (target === 'cleared') {
+      // Killed all three — stay in the chamber. Replace the goblins with
+      // splatters and leave the player free to roam (north passage now open).
+      this.goblinOutcome = 'cleared'
+      this.currentRoom = 'north'
+      this.clearGoblins()
+      // Camera is already on the north room; no recenter needed.
     }
+  }
+
+  // Replace the three goblin tokens with red splatters where they fell.
+  private clearGoblins() {
+    if (this.splatterGfx) return
+    const spots = this.goblinContainers.map((c) => ({ x: c.x, y: c.y }))
+    this.tweens.killTweensOf(this.goblinContainers)
+    this.goblinContainers.forEach((c) => c.destroy())
+    this.goblinContainers = []
+
+    const g = this.add.graphics().setDepth(3)
+    for (const s of spots) {
+      // A few overlapping dark-red blobs plus scattered droplets.
+      g.fillStyle(0x6e1410, 0.9)
+      g.fillCircle(s.x, s.y, 13)
+      g.fillStyle(0x8a1a12, 0.85)
+      g.fillCircle(s.x - 7, s.y + 4, 8)
+      g.fillCircle(s.x + 9, s.y - 3, 6)
+      g.fillStyle(0x5a0f0c, 0.8)
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + s.x
+        const r = 18 + (i % 3) * 6
+        g.fillCircle(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r, 2 + (i % 2))
+      }
+    }
+    this.splatterGfx = g
   }
 
   // ── Called from React wrapper on mode changes ────────────────────────────────
 
   setDialogueMode(active: boolean) {
+    // No screen dimming — the dungeon stays fully visible behind the dialogue
+    // panel. `inDialogue` still locks movement/clicks while talking.
     this.inDialogue = active
-    this.tweens.add({
-      targets: this.overlayRect,
-      alpha: active ? 0.72 : 0,
-      duration: 200,
-    })
   }
 }
 

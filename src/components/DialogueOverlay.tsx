@@ -699,7 +699,11 @@ const styles: Record<string, React.CSSProperties> = {
   overlay: {
     position: 'absolute',
     inset: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.82)',
+    // No backdrop — the dungeon stays fully visible behind the dialogue panel.
+    backgroundColor: 'transparent',
+    // Let clicks on the uncovered dungeon area fall through; the panel itself
+    // re-enables pointer events below.
+    pointerEvents: 'none',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-end',
@@ -714,6 +718,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#0d0d0d',
     border: '1px solid #3a3020',
     boxShadow: '0 0 40px rgba(0,0,0,0.9)',
+    pointerEvents: 'auto',
   },
   scrollArea: {
     height: '66.666%',

@@ -530,9 +530,15 @@ export const useGameStore = create<GameState>()((set, get) => ({
         )
       : state.pendingBonuses
 
-    // Leaving the chamber for good: flip to exploration, record the scenario as
-    // done, and signal the scene to warp the player into the deep room.
-    if (!choice.check && choice.nextNodeId === 'goblin_exit') {
+    // Leaving the chamber ends the scenario and hands control back to the
+    // exploration view. Two outcomes:
+    //   goblin_exit    — escaped/talked past (goblins still alive) → warp 'deep'
+    //   goblin_cleared — killed all three → stay in the chamber, now emptied
+    const EXIT_WARP: Record<string, string> = {
+      goblin_exit: 'deep',
+      goblin_cleared: 'cleared',
+    }
+    if (!choice.check && EXIT_WARP[choice.nextNodeId]) {
       const scenario = state.activeScenario ?? 'goblin'
       set({
         gameMode: 'exploration',
@@ -540,8 +546,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
         completedScenarios: state.completedScenarios.includes(scenario)
           ? state.completedScenarios
           : [...state.completedScenarios, scenario],
-        warpSignal: { target: 'deep', id: (state.warpSignal?.id ?? 0) + 1 },
-        currentNodeId: 'goblin_exit',
+        warpSignal: { target: EXIT_WARP[choice.nextNodeId], id: (state.warpSignal?.id ?? 0) + 1 },
+        currentNodeId: choice.nextNodeId,
         beatCursor: 0,
         revealedBeats: [],
         pendingBonuses: [],

@@ -168,6 +168,17 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     choices: [],
   },
 
+  // Terminal node for clearing the chamber by killing all three goblins. Like
+  // goblin_exit, it is intercepted in chooseOption — but instead of warping to
+  // the deep room it leaves the player standing in the now-emptied chamber (the
+  // goblins replaced by splatters, the north passage open). Never rendered.
+  goblin_cleared: {
+    id: 'goblin_cleared',
+    narrative: 'The chamber is yours now. The only sound is the fire.',
+    beats: [],
+    choices: [],
+  },
+
   // Shown if the player tries to walk back into the goblin chamber after leaving
   // it. One choice, which routes back out to the deep room via goblin_exit.
   goblin_refuse: {
@@ -1384,7 +1395,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_exit' },
+      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_cleared' },
     ],
   },
 
@@ -1411,7 +1422,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Catch your breath. Then go.', nextNodeId: 'goblin_exit' },
+      { id: 'continue', text: 'Catch your breath. Then go.', nextNodeId: 'goblin_cleared' },
     ],
   },
 
@@ -1438,7 +1449,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Coil the whip and press on.', nextNodeId: 'goblin_exit' },
+      { id: 'continue', text: 'Coil the whip and press on.', nextNodeId: 'goblin_cleared' },
     ],
   },
 
