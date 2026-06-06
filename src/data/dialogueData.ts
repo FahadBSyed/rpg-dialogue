@@ -165,7 +165,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'sneak',
         text: 'Wait for the gap in his circuit, then move.',
-        nextNodeId: 'goblin_slip',
+        nextNodeId: 'goblin_sneak_mid',
         check: { skillKey: 'dangerSense', failNodeId: 'goblin_spotted' },
       },
       {
@@ -249,6 +249,51 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'decide', text: 'You\'ve seen enough.', nextNodeId: 'goblin_approach' },
+    ],
+  },
+
+  goblin_sneak_mid: {
+    id: 'goblin_sneak_mid',
+    narrative:
+      'You are halfway across — not yet to the rubble pile — when BOLE heaves himself to his feet. Some midnight hunger demand. He reaches for the spit and the fire lurches when he blocks it, throwing a wash of shadow across the near side of the room. You are in the open floor. Stopped.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: "Just — just checking it. I'm just checking. I'm not taking more.",
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'You say that and then you take more.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: "GRIT's eyes went left when BOLE moved. Not to look at BOLE — to look at everything that wasn't BOLE.",
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'hold',
+        text: "Hold. Don't be the thing that moved.",
+        nextNodeId: 'goblin_slip',
+      },
+      {
+        id: 'shadow',
+        text: 'Lean into the shadow BOLE made when he blocked the fire.',
+        nextNodeId: 'goblin_slip',
+      },
+      {
+        id: 'speed_up',
+        text: "Close the distance now — BOLE has the room's attention.",
+        nextNodeId: 'goblin_spotted',
+      },
     ],
   },
 
