@@ -581,7 +581,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'give_ground',
         text: 'Keep all three in front of you. Read the room, not the blades.',
         nextNodeId: 'goblin_fight3_r2',
-        check: { skillKey: 'dangerSense', failNodeId: 'goblin_fight3_r2_hurt' },
+        check: { skillKey: 'wayfinding', failNodeId: 'goblin_fight3_r2_hurt' },
       },
       {
         id: 'mushroom',
