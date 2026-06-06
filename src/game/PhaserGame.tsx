@@ -614,6 +614,8 @@ class DungeonScene extends Phaser.Scene {
     if (id === 'goblin_fight_won_wit') return this.animFlee()
     if (FLEE_NODES.has(id)) return this.animFlee()
     if (id.includes('death')) return this.animCollapse()
+    // Caught, then choosing to rise into the light — a confront, not the jolt.
+    if (id === 'goblin_spotted_stand') return this.animConfront()
     if (id.includes('caught') || id.includes('spotted')) return this.animSpotted()
     if (id.includes('cornered')) return this.animEncircle()
     if (id.includes('ambush') || id.includes('fight')) return this.animFight()

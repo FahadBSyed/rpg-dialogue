@@ -517,6 +517,74 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_escaped',
         check: { skillKey: 'endurance', failNodeId: 'goblin_run_cornered' },
       },
+      {
+        id: 'stand',
+        text: 'Don\'t run. Rise out of the crouch slow, both hands wide, and step the rest of the way into the light.',
+        nextNodeId: 'goblin_spotted_stand',
+      },
+    ],
+  },
+
+  // Caught skulking, you choose to stand instead of run. This funnels into the
+  // same conversation trees as goblin_confront — but from a worse footing: they
+  // saw you hiding, watching them eat, and that read rides into the social
+  // checks as a size_step_down on deception and reputation. The angles that the
+  // spotting most undercuts (silent terror, the different-species claim) aren't
+  // offered here — you've already shown them prey behaviour, not a looming kin.
+  goblin_spotted_stand: {
+    id: 'goblin_spotted_stand',
+    narrative:
+      'You don\'t run. You take your hand off the blade you were reaching for and you open both palms to the firelight, and then — slowly, the way you\'d stand up in front of a spooked animal — you rise out of the crouch to your full height. It is a long way up. You let them watch all of it. The bolt is still there behind you, the dark and the passage, and every part of your body that wants to live is screaming to take it. You stay. You step the last of the way out of the shadow and let them have the whole of you in the light.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'It\'s not running. Nim — it\'s not running. Why\'s it standing up? Things that get caught run. Hands — keep your hands where I can— stay where you ARE, both of you.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It was watching us. It sat in the black and WATCHED us, and now it wants to talk like it walked up friendly. It didn\'t walk up. It hid. You don\'t forget a thing hid from you.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'Hear what NIM just did. He named the truth — you hid, you watched — and a thing that hid reads as a thing that\'s afraid, which reads as prey. That picture is already in the room and you put it there. Whatever you sell now, you sell over the top of it. Sell harder.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Caught skulking — they saw you hiding, watching them eat' },
+          { type: 'size_step_down', skillKey: 'reputation', sourceDescription: 'Caught skulking — you read as prey before you said a word' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'You lost the opening. Fine. You\'ve started from behind in worse rooms than this. The trick is the same: don\'t apologise for the dark you came out of. Make them think you chose it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'threat',
+        text: 'Take the floor before they settle on a story. "I wasn\'t hiding. I was deciding whether you were worth the trouble of talking to. Hands where they are — you\'ll want to hear this."',
+        nextNodeId: 'goblin_talk_open',
+      },
+      {
+        id: 'divide',
+        text: 'Use the truth they already know. "You\'re right. I was listening from the dark — long enough to hear you two argue. That thing you\'re fighting over. Who found it first?"',
+        nextNodeId: 'goblin_divide_open',
+      },
+      {
+        id: 'ally',
+        text: 'Hands open, easy. "I was in the dark behind you the whole time. I could have stayed there. I stood up instead — because I\'m worth more to you walking around down here than I am dead on your floor, and the quiet one already knows it."',
+        nextNodeId: 'goblin_ally_open',
+      },
+      {
+        id: 'bribe',
+        text: '(come out of your coat with the grey handful, slow) "Before anyone reaches for anything — there\'s a thing here worth more to you than I am. Look at it before you decide."',
+        nextNodeId: 'goblin_bribe_open',
+        requiresUnlock: 'poison',
+      },
     ],
   },
 
