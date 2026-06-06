@@ -589,6 +589,22 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_mushroom3',
         requiresUnlock: 'poison',
       },
+      {
+        id: 'brace',
+        text: 'Back to the wall. Force them to funnel in — the fire covers the left angle.',
+        nextNodeId: 'goblin_fight_brace',
+      },
+      {
+        id: 'flee_r1',
+        text: 'The passage is still open. Bolt before they close it.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_fight3_r2_hurt' },
+      },
+      {
+        id: 'talk',
+        text: 'WAIT—',
+        nextNodeId: 'goblin_fight_talk_open',
+      },
     ],
   },
 
@@ -632,6 +648,22 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'End the question. Throw the corpse-veil.',
         nextNodeId: 'goblin_mushroom3',
         requiresUnlock: 'poison',
+      },
+      {
+        id: 'spit',
+        text: 'Grab the cooking spit. Something in your hand that isn\'t empty.',
+        nextNodeId: 'goblin_fight_spit',
+      },
+      {
+        id: 'feign',
+        text: 'Let the body sell it — show them more damage than there is.',
+        nextNodeId: 'goblin_fight_feign',
+      },
+      {
+        id: 'flee_r2',
+        text: 'The big one\'s between you and them. Put him there properly and go.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight3_r3_hurt' },
       },
     ],
   },
@@ -679,6 +711,12 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_mushroom3',
         requiresUnlock: 'poison',
       },
+      {
+        id: 'flee_r2_hurt',
+        text: 'Run. Whatever it costs.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight3_r3_hurt' },
+      },
     ],
   },
 
@@ -719,6 +757,300 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Listen to the mad voice. Throw the corpse-veil.',
         nextNodeId: 'goblin_mushroom3',
         requiresUnlock: 'poison',
+      },
+      {
+        id: 'flee_r3_hurt',
+        text: 'Break. Now. Whatever\'s left — spend it running.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
+    ],
+  },
+
+  // ── Combat maneuvers, desperation moves, and the long-shot dialogue path ────
+  // Non-check setup moves (wall brace, weapon of opportunity), hidden-bad
+  // choices (feigning, wrong-target appeals), flee options throughout, and a
+  // mid-fight conversation path that is very unlikely to work but available.
+  // All re-enter the main sequence at their appropriate hurt/okay nodes.
+
+  goblin_fight_brace: {
+    id: 'goblin_fight_brace',
+    narrative:
+      'You back to the wall and let them come. The fire covers the left approach; the rubble pile covers the right. There are exactly two angles now, and neither of them is easy. You are three feet of very specific problem, and nothing in this room can get behind you. It doesn\'t fix the numbers. It fixes the shape of them, which is the only fix on offer.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Better. They\'re paying rent now. Every inch costs them — hold this, make them earn it, don\'t give a foot back without making the taking expensive.',
+        bonuses: [
+          { type: 'size_step_up', skillKey: 'endurance', sourceDescription: 'Wall position — only two can reach you at once' },
+        ],
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Fan wide. Around the fire — left and right, it can\'t hold two angles at once. Keep moving.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'He split them to come wide. The small one\'s going left, behind the fire — he thinks that\'s when he has the angle. He\'s wrong. Show him before he stops believing it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'press',
+        text: 'They\'re split. Get inside the small one\'s reach before they reset.',
+        nextNodeId: 'goblin_fight3_r2',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight3_r2_hurt' },
+      },
+      {
+        id: 'read',
+        text: 'Watch where they\'re going to be, not where they are.',
+        nextNodeId: 'goblin_fight3_r2',
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_fight3_r2_hurt' },
+      },
+    ],
+  },
+
+  goblin_fight_spit: {
+    id: 'goblin_fight_spit',
+    narrative:
+      'You grab the cooking spit one-handed — the meat is still on it, still hot — and the fat pops against your palm and you hold it anyway. They pull back from the arm of fire. You have reach now, and the specific reek of a bad decision that is paying off, and a hand that is going to remember this for weeks.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'HUNGER',
+        text: 'That smells like protein. I\'m aware of what you\'re doing with it. I\'m only noting the smell.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Nim — it\'s got the spit. It took the spit off the fire. That\'s our spit, Nim.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Let them look at it. They can see what\'s at the end of it and where it just came from. You bought reach and the suggestion of what you\'d do with reach. Hold it level. Mean it.',
+        bonuses: [
+          { type: 'size_step_up', skillKey: 'spite', sourceDescription: 'Burning brand — reach, heat, and the clear implication' },
+        ],
+        penalties: [
+          { type: 'add_stress_die', skillKey: 'endurance', sourceDescription: 'The burn is real — the hand will collect on this later' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'drive',
+        text: 'Drive them back with it. Keep them at the end of it and pick your moment.',
+        nextNodeId: 'goblin_fight_won',
+        check: { skillKey: 'spite', failNodeId: 'goblin_fight3_r3_hurt' },
+      },
+      {
+        id: 'use_room',
+        text: 'The fire, the rubble, the low ceiling. All of it — use the room.',
+        nextNodeId: 'goblin_fight_won_wit',
+        check: { skillKey: 'dungeonLore', failNodeId: 'goblin_fight3_r3_hurt' },
+      },
+    ],
+  },
+
+  goblin_fight_feign: {
+    id: 'goblin_fight_feign',
+    narrative:
+      'You let the leg go — just for a half-second, just enough to sell it — and one of them actually pulls up. Then NIM makes a sound. Short and flat, the sound a door makes when it closes on purpose.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Oh. Oh, it\'s clever. The leg. Grit — look at the leg, look at how deliberate that was. That\'s a trap, that\'s the trap-shape. I hate it. I\'ve seen it twice and I still hate it. In — before the leg gets better.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'In.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'NIM read it faster than you threw it. In a fight like this there\'s no sell — they\'re not deciding what to believe, they\'re deciding when to move. You handed him the exact shape of desperation and he filed it.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'NIM clocked the feign and they closed before you recovered' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'back_to_it',
+        text: 'No more tricks. Set your weight.',
+        nextNodeId: 'goblin_fight3_r2_hurt',
+      },
+    ],
+  },
+
+  goblin_fight_talk_open: {
+    id: 'goblin_fight_talk_open',
+    narrative:
+      'You shout WAIT — just the word, just the shape of a stop — and something in the chamber holds. One second. The big one flinches. GRIT stops mid-step. You have the length of one breath before the moment closes and they decide it was nothing.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...It\'s talking. While it\'s bleeding.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Fast. Say it fast.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Nim, it stopped. Maybe it doesn\'t want to — maybe we could just—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It\'s buying time. Every word is a second it\'s not bleeding. Don\'t.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'GRIT held his own hand. That is the only miracle available in this room. He\'s the one who can change the math — NIM is already gone, BOLE follows whoever decides. Speak to the one who decides. One thing, flat, about the cost.',
+      },
+    ],
+    choices: [
+      {
+        id: 'cost',
+        text: '(to GRIT) "You know how this ends if I have to finish it. You\'ve been doing this long enough to run that count. How many of you walk out?"',
+        nextNodeId: 'goblin_fight_talk_close',
+      },
+      {
+        id: 'mercy',
+        text: '(to all three) "Nobody has to die here. Walk away — right now, all of you."',
+        nextNodeId: 'goblin_fight_talk_miss',
+      },
+      {
+        id: 'bole',
+        text: '(to BOLE) "BOLE — just step back. You don\'t have to be in this."',
+        nextNodeId: 'goblin_fight_bole_appeal',
+      },
+    ],
+  },
+
+  goblin_fight_talk_miss: {
+    id: 'goblin_fight_talk_miss',
+    narrative:
+      'The moment closes. You watch GRIT\'s face do something small and final, and then they\'re moving again.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'There. The mercy voice. Every big thing tries the mercy voice at the end. You know what the mercy voice is, Bole? It\'s the voice of something hoping we\'re frightened. We\'re not frightened. Go.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You spoke to the room. A room that doesn\'t have to decide doesn\'t. NIM named the play before you finished it. The breath you spent is gone, and GRIT used it to advance.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'NIM named the mercy play — the room heard it and stopped deciding' },
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Gave them a breath — they used it to advance' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'back_to_it',
+        text: 'Back to it.',
+        nextNodeId: 'goblin_fight3_r2_hurt',
+      },
+    ],
+  },
+
+  goblin_fight_talk_close: {
+    id: 'goblin_fight_talk_close',
+    narrative:
+      'GRIT looks at you. Not the way he did when you were a stranger at the fire\'s edge — this is the other look, the calculator look, running the numbers on whether a thing still upright and talking mid-fight costs more to put down than to let through.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'The last thing that talked to me mid-fight, I opened up anyway. Didn\'t help it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Grit—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'One more word. A real one.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'He\'s still holding his hand back. The market is terrible — you\'re bleeding, breathless, and he can see the math as clearly as you can. But there\'s a reason to wonder. Sell him the cost. Not the mercy. The cost. One flat specific thing, and then let the silence do the last piece.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Mid-fight — the context is terrible and GRIT knows exactly what it is' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'say_it',
+        text: 'Say it. Flat. No flourish.',
+        nextNodeId: 'goblin_threat_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_fight3_r2_hurt' },
+      },
+    ],
+  },
+
+  goblin_fight_bole_appeal: {
+    id: 'goblin_fight_bole_appeal',
+    narrative:
+      'BOLE\'s eyes go soft — and then NIM\'s hand clamps on his shoulder and BOLE goes blank in the way large things go blank when they\'ve handed the thinking over to someone else.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'No. BOLE — look at me, not at it. Look at ME. It killed Grit and now it wants to use your face against you. Eyes on me. Stay.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...yeah. Yeah, Nim. Sorry. I would\'ve.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'BOLE would have. But BOLE doesn\'t hold the decision — NIM stepped in and closed the door and you spent the pause on the wrong goblin. GRIT watched you aim at the wrong target. He\'ll spend that knowledge.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Wrong target — NIM shut it down and GRIT filed the attempt' },
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Spent the pause in the wrong direction' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'back_to_grit',
+        text: 'Too late for BOLE. Back to GRIT — try to finish what you started.',
+        nextNodeId: 'goblin_fight3_r2_hurt',
       },
     ],
   },
@@ -1126,6 +1458,17 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_mushroom2',
         requiresUnlock: 'poison',
       },
+      {
+        id: 'flee',
+        text: 'Break for the passage. They\'re angry, not careful.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_fight2_r2_hurt' },
+      },
+      {
+        id: 'bole',
+        text: 'BOLE.',
+        nextNodeId: 'goblin_fight_bole_plea',
+      },
     ],
   },
 
@@ -1216,6 +1559,57 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'The big one\'s out of it. Take the small one while he\'s alone.',
         nextNodeId: 'goblin_fight_two_won',
         check: { skillKey: 'endurance', failNodeId: 'goblin_death' },
+      },
+    ],
+  },
+
+  goblin_fight_bole_plea: {
+    id: 'goblin_fight_bole_plea',
+    narrative:
+      'You say his name into the fight — just the name, no sentence attached — and BOLE stops. Not all the way. He\'s still holding what\'s in his hand. But you\'ve found a thread, and for one half-second NIM doesn\'t have it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'BOLE. BOLE, don\'t you—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...it knows my name.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'I KNOW your name! It doesn\'t — BOLE—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Grit knew my name. And Grit\'s gone, Nim. It\'s the thing that — it knew Grit\'s name too. And it\'s still standing. Maybe we should hear it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'GRIT held this room and GRIT is gone and BOLE just did that math without your help. What\'s left is him and NIM and a thing that put GRIT down and kept going. That registers differently when the one who held the room can\'t hold it anymore.',
+      },
+    ],
+    choices: [
+      {
+        id: 'price',
+        text: '"Name something you need that doesn\'t have to be this. Name a price."',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'deception', failNodeId: 'goblin_fight2_r2_hurt' },
+      },
+      {
+        id: 'silence',
+        text: 'Say nothing more. Let the name sit on him.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'reputation', failNodeId: 'goblin_fight2_r2_hurt' },
       },
     ],
   },
