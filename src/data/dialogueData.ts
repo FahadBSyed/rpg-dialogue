@@ -323,7 +323,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       { id: 'continue', text: 'Press on. Leave them to it.', nextNodeId: 'goblin_start' },
       {
         id: 'poison',
-        text: 'Go back. The fire is right there — they\'ll never know you were behind them.',
+        text: 'Go back. Drop the mushroom in the stew — the fire is right there and they\'ll never know you were behind them.',
         nextNodeId: 'goblin_poison_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
         requiresUnlock: 'poison',
