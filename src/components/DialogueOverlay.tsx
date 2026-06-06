@@ -620,7 +620,10 @@ export function DialogueOverlay() {
                   ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#3a3020'
                   ;(e.currentTarget as HTMLButtonElement).style.color = '#5a5040'
                 }}
-                onClick={() => { if (isAnimating) { setInstant(true) } else { advanceBeat() } }}
+                onClick={() => {
+                  window.__rpgScene?.fastForwardAnims()
+                  if (isAnimating) { setInstant(true) } else { advanceBeat() }
+                }}
               >
                 {nextSpeaker && (
                   <span style={{ color: speakerColor(nextSpeaker), fontFamily: 'monospace', fontSize: '0.75rem', marginRight: '10px' }}>
@@ -660,7 +663,10 @@ export function DialogueOverlay() {
                     ;(e.currentTarget as HTMLButtonElement).style.borderColor = '#5a4a2a'
                     ;(e.currentTarget as HTMLButtonElement).style.color = '#a88a50'
                   }}
-                  onClick={() => { if (isAnimating) { setInstant(true) } else { chooseOption(i) } }}
+                  onClick={() => {
+                    window.__rpgScene?.fastForwardAnims()
+                    if (isAnimating) { setInstant(true) } else { chooseOption(i) }
+                  }}
                 >
                   {choice.text}
                   {choice.check && (() => {

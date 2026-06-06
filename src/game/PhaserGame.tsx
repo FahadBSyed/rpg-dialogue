@@ -99,6 +99,11 @@ class DungeonScene extends Phaser.Scene {
   // Per-node animation state for the goblin scenario.
   private goblinSceneReady = false
   private aliveGoblins: Phaser.GameObjects.Container[] = []
+  // Registry of in-flight *action* tweens/timers so a click can fast-forward
+  // them to their end state. Looping ambient tweens (banter/hop) are NOT
+  // registered, so fast-forwarding leaves the idle motion running.
+  private actionTweens = new Set<Phaser.Tweens.Tween>()
+  private actionTimers = new Set<Phaser.Time.TimerEvent>()
 
   constructor() {
     super({ key: 'DungeonScene' })
@@ -530,6 +535,71 @@ class DungeonScene extends Phaser.Scene {
   // Driven from React whenever currentNodeId changes while in dialogue. A small
   // dispatcher picks an animation per node from the dialogue graph + keywords.
 
+  // Register an *action* tween: tracked so a click can complete it early, and
+  // self-removed from the registry when it finishes.
+  private aTween(cfg: Phaser.Types.Tweens.TweenBuilderConfig) {
+    const userDone = cfg.onComplete
+    const tween = this.tweens.add({
+      ...cfg,
+      onComplete: (t, targets, ...rest) => {
+        this.actionTweens.delete(t)
+        ;(userDone as ((...a: unknown[]) => void) | undefined)?.(t, targets, ...rest)
+      },
+    })
+    this.actionTweens.add(tween)
+    return tween
+  }
+
+  // Register an *action* delayed call so fast-forward can fire it immediately.
+  private aLater(ms: number, cb: () => void) {
+    const timer = this.time.delayedCall(ms, () => {
+      this.actionTimers.delete(timer)
+      cb()
+    })
+    this.actionTimers.add(timer)
+    return timer
+  }
+
+  // Snap every in-flight action tween/timer to its end. Pending timers fire
+  // first (they may spawn the next tween), then tweens complete; we flush in a
+  // bounded loop because completions/timers can chain further steps.
+  fastForwardAnims() {
+    let guard = 0
+    while (
+      guard++ < 24 &&
+      (this.actionTimers.size > 0 ||
+        [...this.actionTweens].some((t) => t.isPlaying() || t.isPaused()))
+    ) {
+      this.actionTimers.forEach((timer) => {
+        const cb = timer.callback as (() => void) | undefined
+        const scope = timer.callbackScope
+        this.actionTimers.delete(timer)
+        timer.remove(false)
+        cb?.call(scope)
+      })
+      this.actionTweens.forEach((t) => {
+        if (t.isPlaying() || t.isPaused()) t.complete()
+      })
+    }
+    this.actionTweens.clear()
+    this.actionTimers.clear()
+  }
+
+  // Beat-timed animations: fired when a specific beat is revealed (not at node
+  // entry), so the motion lands on the line that describes it.
+  playBeatAnim(name: string) {
+    switch (name) {
+      case 'poisonStew':
+        return this.animPoisonStew()
+      case 'sneakForward':
+        return this.animSneak()
+      case 'strike':
+        return this.animFight()
+      case 'flee':
+        return this.animFlee()
+    }
+  }
+
   playNodeAnim(id: string) {
     if (!id.startsWith('goblin_')) return
     // Terminal/meta nodes are handled by the warp + refusal, not animated here.
@@ -548,7 +618,9 @@ class DungeonScene extends Phaser.Scene {
     if (id.includes('cornered')) return this.animEncircle()
     if (id.includes('ambush') || id.includes('fight')) return this.animFight()
     if (id.includes('divide')) return this.animDivide()
-    if (id === 'goblin_slip' || id === 'goblin_poison_success') return this.animPoisonStew()
+    // The poison action is beat-timed (see playBeatAnim); at entry this node
+    // just holds the ambient fireside framing.
+    if (id === 'goblin_poison_success') return this.animObserve()
     if (id.includes('sneak') || id.includes('slip')) return this.animSneak()
     if (id.includes('mushroom') || id.includes('poison') || id.includes('bribe')) return this.animToss()
     if (id === 'goblin_start' || id === 'goblin_approach' || id === 'goblin_observe') return this.animObserve()
@@ -698,19 +770,19 @@ class DungeonScene extends Phaser.Scene {
     const savedY = this.player.y
     const savedAlpha = this.player.alpha
     // Dim the player to convey stealth.
-    this.tweens.add({ targets: this.player, alpha: 0.5, duration: 200 })
+    this.aTween({ targets: this.player, alpha: 0.5, duration: 200 })
     // Creep to the fire.
-    this.tweens.add({
+    this.aTween({
       targets: this.player, x: FIRE_POS.x, y: FIRE_POS.y + 30, duration: 900, ease: 'Sine.easeInOut',
       onComplete: () => {
         // Brief interaction: pulse at the fire.
         const glow = this.add.circle(FIRE_POS.x, FIRE_POS.y + 10, 8, 0x6fa84a, 0.7).setDepth(6)
-        this.tweens.add({ targets: glow, alpha: 0, scaleX: 2, scaleY: 2, duration: 500,
+        this.aTween({ targets: glow, alpha: 0, scaleX: 2, scaleY: 2, duration: 500,
           onComplete: () => glow.destroy() })
         // Retreat into shadow after the interaction.
-        this.tweens.add({
+        this.aTween({
           targets: this.player, x: savedX, y: savedY, duration: 850, ease: 'Sine.easeInOut', delay: 450,
-          onComplete: () => this.tweens.add({ targets: this.player, alpha: savedAlpha, duration: 300 }),
+          onComplete: () => this.aTween({ targets: this.player, alpha: savedAlpha, duration: 300 }),
         })
       },
     })
@@ -908,6 +980,23 @@ export function PhaserGame() {
     if (mode !== 'dialogue') return
     window.__rpgScene?.playNodeAnim(currentNodeId)
   }, [currentNodeId, mode])
+
+  // Beat-timed animations: when a freshly revealed beat carries an `anim`, fire
+  // it on the scene so the motion lands on that line (not at node entry).
+  const prevRevealedCount = useRef(0)
+  useEffect(() => {
+    if (mode !== 'dialogue') {
+      prevRevealedCount.current = revealedBeats.length
+      return
+    }
+    if (revealedBeats.length > prevRevealedCount.current) {
+      const fresh = revealedBeats.slice(prevRevealedCount.current)
+      for (const entry of fresh) {
+        if (entry.anim) window.__rpgScene?.playBeatAnim(entry.anim)
+      }
+    }
+    prevRevealedCount.current = revealedBeats.length
+  }, [revealedBeats, mode])
 
   // Focus cam: follow the most recently revealed speaker. The current speaker is
   // the latest revealed voice line; before any beats it's the narrator (default).

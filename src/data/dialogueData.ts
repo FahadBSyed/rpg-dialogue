@@ -28,11 +28,18 @@ export interface Interjection {
 // one at a time. A beat is either a skill's voice line, or a passive check
 // that is rolled at the moment it is reached — on a pass it reveals its
 // message (and any bonus); on a fail it is silently skipped.
+// A named scene animation that should fire when a specific beat is revealed,
+// rather than at node entry. Lets the visual land on the line that describes it
+// (e.g. the creep-to-fire plays on "your hand is in the meat", not on entry).
+export type BeatAnim = 'poisonStew' | 'sneakForward' | 'strike' | 'flee'
+
 export interface VoiceBeat {
   kind: 'voice'
   id?: string
   speaker: string
   text: string
+  // Fire this scene animation when this beat is revealed (beat-timed action).
+  anim?: BeatAnim
   // True for lines spoken aloud by an NPC (overheard or directed at Fiodor),
   // as opposed to the internal skill voices. Rendered in a distinct style.
   external?: boolean
@@ -47,6 +54,8 @@ export interface PassiveBeat {
   kind: 'passive'
   id?: string
   skillKey: SkillKey
+  // Fire this scene animation when this passive's success interjection shows.
+  anim?: BeatAnim
   // Omit for a silent pass — bonuses still apply, nothing shown.
   successInterjection?: Interjection
   successBonuses?: Array<{ type: BonusType; skillKey?: SkillKey; unlockKey?: string; sourceDescription: string }>
@@ -394,6 +403,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         kind: 'voice',
         speaker: 'DECEPTION',
+        anim: 'poisonStew',
         text: 'Slow hands. Natural hands. Nothing furtive — furtive is what gets seen. You belonged at that fire for exactly as long as you needed to belong there, and not one breath more. That is the whole art of it.',
       },
       {

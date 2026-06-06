@@ -67,6 +67,8 @@ export interface LogEntry {
   passive?: boolean
   appliedBonus?: { type: BonusType; description: string }
   appliedPenalty?: { type: PenaltyType; description: string }
+  // A beat-timed scene animation to fire when this entry is revealed.
+  anim?: string
 }
 
 // An in-flight active check whose dice are being animated before the result
@@ -386,7 +388,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     while (cursor < beats.length && !revealedSomething) {
       const beat = beats[cursor]
       if (beat.kind === 'voice') {
-        revealed.push({ type: 'interjection', speaker: beat.speaker, text: beat.text, external: beat.external })
+        revealed.push({ type: 'interjection', speaker: beat.speaker, text: beat.text, external: beat.external, anim: beat.anim })
         if (beat.penalties?.length) {
           penalties = [...penalties, ...beat.penalties.map((p) => ({ ...p, id: newPenaltyId() }))]
         }
@@ -467,6 +469,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
             type: 'interjection',
             speaker: beat.successInterjection.speaker,
             text: beat.successInterjection.text,
+            anim: beat.anim,
           })
           if (!isReplay && beat.successBonuses?.length) {
             bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
