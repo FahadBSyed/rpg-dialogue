@@ -2176,7 +2176,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   // body, then asks one flat question that is the real check. A Dungeon Lore
   // passive up front decides whether you actually know goblin-kinds well enough
   // to lean on the lore — pass it and a size_step_up rides into the final
-  // Superstition check; fail it and you improvise blind. The recurring trap is
+  // The Deep check; fail it and you improvise blind. The recurring trap is
   // KNOWING TOO MUCH: real kin don't recite their own taxonomy, don't lecture,
   // don't correct invented kin-law. Every over-explanation is a size_step_down.
   //
@@ -2190,7 +2190,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   //     → goblin_species_grit       (accept the frame, concede something costless)
   //     → goblin_species_correct    (trap: fix NIM's kin-law → penalty → grit)
   //     → goblin_cornered           (refuse the frame — you break your own story)
-  //   goblin_species_grit → Superstition check → goblin_species_success / _fail
+  //   goblin_species_grit → The Deep check → goblin_species_success / _fail
 
   goblin_species_open: {
     id: 'goblin_species_open',
@@ -2217,7 +2217,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
           text: 'You know this lore — better than they do, which is the trap and the gift both. There are deep-kin: pale, oversized, raised by the wet rooms, spoken of and almost never seen. The story does the work for you here — but only if you wear it like a thing you ARE, not a thing you KNOW. Claim it small. Let their own legend fill the rest.',
         },
         successBonuses: [
-          { type: 'size_step_up', skillKey: 'superstition', sourceDescription: 'You know the deep-kin lore — the legend carries weight you don\'t have to invent' },
+          { type: 'size_step_up', skillKey: 'theDeep', sourceDescription: 'You know the deep-kin lore — the legend carries weight you don\'t have to invent' },
         ],
         failInterjection: {
           speaker: 'SUPERSTITION',
@@ -2260,7 +2260,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         speaker: 'SUPERSTITION',
         text: 'You proved knowledge when you needed to prove blood. Knowledge can be got from anywhere — a captured kinsman, a scholar\'s page, a long bad night listening at a fire. Blood is the thing you can\'t recite. Stop naming. Be vague the way a real one is vague — bored, half-remembering, certain without proof.',
         penalties: [
-          { type: 'size_step_down', skillKey: 'superstition', sourceDescription: 'Recited the taxonomy — proved you studied them, not that you are them' },
+          { type: 'size_step_down', skillKey: 'theDeep', sourceDescription: 'Recited the taxonomy — proved you studied them, not that you are them' },
         ],
       },
     ],
@@ -2340,7 +2340,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         speaker: 'SUPERSTITION',
         text: 'You tried to produce a holy thing on demand and produced a counterfeit instead. The only repair is to make the counterfeit a choice — that you gave him a hollow version on purpose, because the real one isn\'t for here. Thin. But a real one would never have tried at all, so sell the refusal you should have led with.',
         penalties: [
-          { type: 'size_step_down', skillKey: 'superstition', sourceDescription: 'Faked the cold-song — NIM has heard the real one and you have not' },
+          { type: 'size_step_down', skillKey: 'theDeep', sourceDescription: 'Faked the cold-song — NIM has heard the real one and you have not' },
         ],
       },
     ],
@@ -2408,7 +2408,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         speaker: 'SUPERSTITION',
         text: 'You won the small fight and lost the big one. The most a real kinsman ever says about kin-law is "that\'s not how it goes" — flat, bored, no detail, because to him it isn\'t knowledge, it\'s just air. You gave him the recital again. Get back to bored. Make GRIT\'s question the only thing in the room.',
         penalties: [
-          { type: 'size_step_down', skillKey: 'superstition', sourceDescription: 'Out-lawyered NIM — proved you studied kin-law instead of living it' },
+          { type: 'size_step_down', skillKey: 'theDeep', sourceDescription: 'Out-lawyered NIM — proved you studied kin-law instead of living it' },
         ],
       },
     ],
@@ -2448,7 +2448,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'give_the_look',
         text: 'Hold his eyes. Stop performing. Let the worst dark you ever stood in rise up behind your face — and let GRIT look all the way down into it.',
         nextNodeId: 'goblin_species_success',
-        check: { skillKey: 'superstition', failNodeId: 'goblin_species_fail' },
+        check: { skillKey: 'theDeep', failNodeId: 'goblin_species_fail' },
       },
     ],
   },
