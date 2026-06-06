@@ -85,9 +85,19 @@ export interface CharacterSelections {
   d10: SkillKey
 }
 
+// A bump to `warpSignal.id` tells the Phaser scene to teleport the player to a
+// named destination (the scene owns the geometry). Carried via the store so a
+// dialogue choice can drive an exploration-world warp.
+export interface WarpSignal {
+  target: string
+  id: number
+}
+
 interface GameState {
   gameMode: GameMode
   activeScenario: string | null
+  completedScenarios: string[]
+  warpSignal: WarpSignal | null
   skills: Skills
   characterCreated: boolean
   currentNodeId: string
@@ -113,6 +123,7 @@ interface GameState {
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
   startScenario: (nodeId: string, scenario: string) => void
+  openRefusal: () => void
   advanceBeat: () => void
   chooseOption: (choiceIndex: number) => void
   setDebugForce: (outcome: CheckOutcome | null) => void
@@ -169,6 +180,8 @@ function newPenaltyId() { return `penalty_${++penaltyIdCounter}` }
 export const useGameStore = create<GameState>()((set, get) => ({
   gameMode: 'exploration',
   activeScenario: null,
+  completedScenarios: [],
+  warpSignal: null,
 
   skills: {
     // FLESH
@@ -329,6 +342,22 @@ export const useGameStore = create<GameState>()((set, get) => ({
       gameMode: 'dialogue',
       activeScenario: scenario,
       currentNodeId: nodeId,
+      beatCursor: 0,
+      revealedBeats: [],
+      pendingBonuses: [],
+      pendingPenalties: [],
+      passiveCache: {},
+      dialogueLog: [],
+    })
+  },
+
+  // Open the short "I'm not going back" refusal when the player tries to walk
+  // back into a chamber they've already left.
+  openRefusal: () => {
+    set({
+      gameMode: 'dialogue',
+      activeScenario: 'goblin',
+      currentNodeId: 'goblin_refuse',
       beatCursor: 0,
       revealedBeats: [],
       pendingBonuses: [],
@@ -500,6 +529,28 @@ export const useGameStore = create<GameState>()((set, get) => ({
           (b) => !(b.type === 'unlock_choice' && b.unlockKey === choice.requiresUnlock)
         )
       : state.pendingBonuses
+
+    // Leaving the chamber for good: flip to exploration, record the scenario as
+    // done, and signal the scene to warp the player into the deep room.
+    if (!choice.check && choice.nextNodeId === 'goblin_exit') {
+      const scenario = state.activeScenario ?? 'goblin'
+      set({
+        gameMode: 'exploration',
+        activeScenario: null,
+        completedScenarios: state.completedScenarios.includes(scenario)
+          ? state.completedScenarios
+          : [...state.completedScenarios, scenario],
+        warpSignal: { target: 'deep', id: (state.warpSignal?.id ?? 0) + 1 },
+        currentNodeId: 'goblin_exit',
+        beatCursor: 0,
+        revealedBeats: [],
+        pendingBonuses: [],
+        pendingPenalties: [],
+        passiveCache: {},
+        dialogueLog: [],
+      })
+      return
+    }
 
     if (!choice.check) {
       set({

@@ -157,6 +157,40 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
   },
 
+  // Terminal node for every successful exit from the goblin chamber. Reaching it
+  // is intercepted in chooseOption: the game leaves dialogue, marks the goblin
+  // scenario complete, and warps the player into the deep room to the north.
+  // It is never actually rendered (mode flips to exploration first).
+  goblin_exit: {
+    id: 'goblin_exit',
+    narrative: 'The chamber falls away behind you. The dark ahead is colder.',
+    beats: [],
+    choices: [],
+  },
+
+  // Shown if the player tries to walk back into the goblin chamber after leaving
+  // it. One choice, which routes back out to the deep room via goblin_exit.
+  goblin_refuse: {
+    id: 'goblin_refuse',
+    narrative:
+      'You get as far as the mouth of the passage and your body simply stops — the old animal part of you planting its feet before the thinking part has finished the sentence. Back there is a cookfire and a spit and three reasons the floor was sticky. Whatever you settled with them, you settled it once. Going back in is just asking the dark to revise the terms.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'No. Whatever\'s back there now, it isn\'t better than it was, and it was barely survivable then. The only direction that doesn\'t cost you is the one you haven\'t walked yet.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'YOU',
+        text: 'Not going back there. Not for a buckle, not for the meat, not for anything that fire is keeping warm. Forward\'s the only road that doesn\'t already know my face.',
+      },
+    ],
+    choices: [
+      { id: 'turn_away', text: 'Turn your back on the fire. Go on into the deep.', nextNodeId: 'goblin_exit' },
+    ],
+  },
+
   goblin_approach: {
     id: 'goblin_approach',
     narrative: 'The chamber is laid out below you. Three goblins, a cookfire, the passage you need. They still haven\'t seen you.',
@@ -320,7 +354,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Press on. Leave them to it.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Press on. Leave them to it.', nextNodeId: 'goblin_exit' },
       {
         id: 'poison',
         text: 'Go back. Drop the mushroom in the stew — the fire is right there and they\'ll never know you were behind them.',
@@ -365,7 +399,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Leave them to it. Press on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Leave them to it. Press on.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -484,7 +518,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Catch your breath, then go on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Catch your breath, then go on.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -1123,7 +1157,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -1350,7 +1384,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Step over them and press on.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -1377,7 +1411,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Catch your breath. Then go.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Catch your breath. Then go.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -1404,7 +1438,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Coil the whip and press on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Coil the whip and press on.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -2057,7 +2091,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Walk in front. Hands visible. Take the passage.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Walk in front. Hands visible. Take the passage.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -2483,7 +2517,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Take the road they made. Don\'t look back at the fire.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Take the road they made. Don\'t look back at the fire.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -2782,7 +2816,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Walk through.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Walk through.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -2908,7 +2942,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Let them go. Walk through.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Let them go. Walk through.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -3242,7 +3276,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Step past the fire and go, before he reconsiders.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Step past the fire and go, before he reconsiders.', nextNodeId: 'goblin_exit' },
     ],
   },
 
@@ -3653,7 +3687,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_start' },
+      { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_exit' },
     ],
   },
 

@@ -2,37 +2,41 @@ import { useEffect, useRef } from 'react'
 import Phaser from 'phaser'
 import { useGameStore } from '../store/gameStore'
 
-// ── World layout (1600 × 1200) ───────────────────────────────────────────────
+// ── World layout ─────────────────────────────────────────────────────────────
 //
+//   Deep room   (empty):    x=0..800,   y=-600..0   (warped to after escape)
 //   North room  (goblins):  x=0..800,   y=0..600
 //   Center room (start):    x=0..800,   y=600..1200
 //   East room   (empty):    x=800..1600, y=600..1200
 //
 // Passages connect rooms through gaps in shared walls:
+//   Deep   ↔ North: x=340..460, at y=0    (width 120, one-way after escape)
 //   Center ↔ North: x=340..460, at y=600  (width 120)
 //   Center ↔ East:  y=860..940, at x=800  (height 80)
 
-const WORLD_W = 1600
-const WORLD_H = 1200
+const WORLD_BOUNDS = { x: 0, y: -600, w: 1600, h: 1800 }
 
 // Room centers for camera pan targets
 const ROOM_CAMERA = {
+  deep:   { x: 400,  y: -300 },
   center: { x: 400,  y: 900 },
   north:  { x: 400,  y: 300 },
   east:   { x: 1200, y: 900 },
 }
 
 // Passage bounds (in world coords)
+const PASS_D = { x1: 340, x2: 460, y: 0 }   // deep↔north, horizontal seam
 const PASS_N = { x1: 340, x2: 460, y: 600 } // center↔north, horizontal seam
 const PASS_E = { y1: 860, y2: 940, x: 800 } // center↔east, vertical seam
 
-type Room = 'center' | 'north' | 'east'
+type Room = 'deep' | 'center' | 'north' | 'east'
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 // Callback injected by the React wrapper so the Phaser scene can call store actions
 interface SceneCallbacks {
   startScenario: (nodeId: string, scenario: string) => void
+  openRefusal: () => void
   getMode: () => string
 }
 
@@ -60,6 +64,9 @@ class DungeonScene extends Phaser.Scene {
   private cameraPanning = false
   private inDialogue = false
   private goblinTriggered = false
+  // Set once the goblin chamber has been resolved and left. Makes the goblin
+  // room one-way: any attempt to walk back in raises the refusal dialogue.
+  private goblinDone = false
 
   // Dark overlay shown while in dialogue mode
   private overlayRect!: Phaser.GameObjects.Rectangle
@@ -77,7 +84,11 @@ class DungeonScene extends Phaser.Scene {
 
     // Dialogue overlay (full-world size so it covers everything when panned)
     this.overlayRect = this.add
-      .rectangle(WORLD_W / 2, WORLD_H / 2, WORLD_W, WORLD_H, 0x000000)
+      .rectangle(
+        WORLD_BOUNDS.x + WORLD_BOUNDS.w / 2,
+        WORLD_BOUNDS.y + WORLD_BOUNDS.h / 2,
+        WORLD_BOUNDS.w, WORLD_BOUNDS.h, 0x000000,
+      )
       .setAlpha(0)
       .setDepth(20)
 
@@ -87,7 +98,7 @@ class DungeonScene extends Phaser.Scene {
     this.drawCursor()
 
     // Camera: start centered on center room
-    this.cameras.main.setBounds(0, 0, WORLD_W, WORLD_H)
+    this.cameras.main.setBounds(WORLD_BOUNDS.x, WORLD_BOUNDS.y, WORLD_BOUNDS.w, WORLD_BOUNDS.h)
     this.cameras.main.centerOn(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
 
     // Point-and-click input
@@ -130,12 +141,14 @@ class DungeonScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(0)
 
     // Room floors
+    g.fillStyle(0x0c0d12).fillRect(0, -600, 800, 600)        // deep   — near-black
     g.fillStyle(0x111a11).fillRect(0, 0, 800, 600)          // north  — earthy green
     g.fillStyle(0x1a1612).fillRect(0, 600, 800, 600)         // center — warm brown
     g.fillStyle(0x111118).fillRect(800, 600, 800, 600)       // east   — cold blue-grey
 
     // Passage corridors (slightly different tone to read as floor)
     g.fillStyle(0x181614)
+    g.fillRect(PASS_D.x1, PASS_D.y - 15, PASS_D.x2 - PASS_D.x1, 30) // deep passage
     g.fillRect(PASS_N.x1, PASS_N.y - 15, PASS_N.x2 - PASS_N.x1, 30) // north passage
     g.fillRect(PASS_E.x - 15, PASS_E.y1, 30, PASS_E.y2 - PASS_E.y1) // east passage
 
@@ -154,6 +167,7 @@ class DungeonScene extends Phaser.Scene {
 
     // Room labels (very dim, monospace, top-left of each room)
     const labelStyle = { fontSize: '11px', fontFamily: 'monospace', color: '#2a3020', alpha: 0.5 }
+    this.add.text(14, -592, 'DEEP', labelStyle).setDepth(1).setAlpha(0.3)
     this.add.text(14, 8, 'NORTH', labelStyle).setDepth(1).setAlpha(0.35)
     this.add.text(14, 608, 'CENTER', labelStyle).setDepth(1).setAlpha(0.35)
     this.add.text(814, 608, 'EAST', labelStyle).setDepth(1).setAlpha(0.35)
@@ -182,10 +196,19 @@ class DungeonScene extends Phaser.Scene {
       g.strokeLineShape(new Phaser.Geom.Line(x1, y1, x2, y2))
 
     const { x1: nx1, x2: nx2 } = PASS_N
+    const { x1: dx1, x2: dx2 } = PASS_D
     const { y1: ey1, y2: ey2 } = PASS_E
 
-    // North room (0,0 → 800,600) — south wall has passage gap
-    line(0, 0, 800, 0)          // top
+    // Deep room (0,-600 → 800,0) — south wall has passage gap to north room
+    line(0, -600, 800, -600)    // top
+    line(0, -600, 0, 0)         // left
+    line(800, -600, 800, 0)     // right
+    line(0, 0, dx1, 0)          // south left of gap
+    line(dx2, 0, 800, 0)        // south right of gap
+
+    // North room (0,0 → 800,600) — north wall = south of deep (same gap); south wall has gap
+    line(0, 0, dx1, 0)          // north left of gap (shared)
+    line(dx2, 0, 800, 0)        // north right of gap (shared)
     line(0, 0, 0, 600)          // left
     line(800, 0, 800, 600)      // right
     line(0, 600, nx1, 600)      // south left of gap
@@ -292,13 +315,23 @@ class DungeonScene extends Phaser.Scene {
   // transition reliably fires (instead of stopping short inside the doorway).
   private resolveTarget(wx: number, wy: number): { x: number; y: number } | null {
     const { x1: nx1, x2: nx2 } = PASS_N
+    const { x1: dx1, x2: dx2 } = PASS_D
     const { y1: ey1, y2: ey2 } = PASS_E
     const pad = 12
 
     // Generous corridor bands spanning both sides of each seam.
     const inNorthCorridor = wx >= nx1 && wx <= nx2 && wy >= 540 && wy <= 660
+    const inDeepCorridor  = wx >= dx1 && wx <= dx2 && wy >= -60 && wy <= 60
     const inEastCorridor  = wy >= ey1 && wy <= ey2 && wx >= 740 && wx <= 860
 
+    if (this.currentRoom === 'deep') {
+      // The deep room's only door leads back to the goblins — let the player
+      // approach it so the refusal can fire, but never auto-snap them through.
+      if (inDeepCorridor) return { x: clamp(wx, dx1 + 8, dx2 - 8), y: -25 }
+      if (wx >= pad && wx <= 800 - pad && wy >= -600 + pad && wy <= -pad)
+        return { x: wx, y: wy }
+      return null
+    }
     if (this.currentRoom === 'center') {
       if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 560 } // into north
       if (inEastCorridor)  return { x: 840, y: clamp(wy, ey1 + 8, ey2 - 8) } // into east
@@ -325,9 +358,17 @@ class DungeonScene extends Phaser.Scene {
     const px = this.player.x
     const py = this.player.y
     const { x1: nx1, x2: nx2 } = PASS_N
+    const { x1: dx1, x2: dx2 } = PASS_D
     const { y1: ey1, y2: ey2 } = PASS_E
 
-    if (this.currentRoom === 'center') {
+    if (this.currentRoom === 'deep') {
+      // Approaching the door back to the goblins: refuse, and stop short.
+      if (py >= -30 && px >= dx1 - 10 && px <= dx2 + 10) {
+        this.moveTarget = null
+        this.player.setPosition(this.player.x, -70)
+        window.__rpgCallbacks?.openRefusal()
+      }
+    } else if (this.currentRoom === 'center') {
       if (py <= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
         this.enterRoom('north', 400, 560)
       } else if (px >= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
@@ -337,6 +378,8 @@ class DungeonScene extends Phaser.Scene {
       if (py >= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
         this.enterRoom('center', 400, 640)
       }
+      // The deep↔north door only opens via the post-escape warp; the player
+      // never walks north through it (the goblin trigger fires first).
     } else if (this.currentRoom === 'east') {
       if (px <= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
         this.enterRoom('center', 760, 900)
@@ -365,7 +408,7 @@ class DungeonScene extends Phaser.Scene {
   // ── Goblin proximity trigger ─────────────────────────────────────────────────
 
   private checkGoblinTrigger() {
-    if (this.goblinTriggered || this.currentRoom !== 'north') return
+    if (this.goblinTriggered || this.goblinDone || this.currentRoom !== 'north') return
 
     // Trigger box spans the full width of the north room and 90% of its height,
     // measured from the top — so the player can't slip past the goblins. Only
@@ -375,6 +418,19 @@ class DungeonScene extends Phaser.Scene {
       this.goblinTriggered = true
       this.moveTarget = null
       window.__rpgCallbacks?.startScenario('goblin_start', 'goblin')
+    }
+  }
+
+  // ── Warp (called from React on a warpSignal) ─────────────────────────────────
+
+  warpTo(target: string) {
+    if (target === 'deep') {
+      this.goblinDone = true
+      this.goblinTriggered = true
+      this.currentRoom = 'deep'
+      this.moveTarget = null
+      this.player.setPosition(ROOM_CAMERA.deep.x, ROOM_CAMERA.deep.y)
+      this.cameras.main.centerOn(ROOM_CAMERA.deep.x, ROOM_CAMERA.deep.y)
     }
   }
 
@@ -397,14 +453,23 @@ export function PhaserGame() {
   const gameRef = useRef<Phaser.Game | null>(null)
   const mode = useGameStore((s) => s.gameMode)
   const startScenario = useGameStore((s) => s.startScenario)
+  const openRefusal = useGameStore((s) => s.openRefusal)
+  const warpSignal = useGameStore((s) => s.warpSignal)
 
   // Wire up callbacks so the Phaser scene can reach the store
   useEffect(() => {
     window.__rpgCallbacks = {
       startScenario,
+      openRefusal,
       getMode: () => useGameStore.getState().gameMode,
     }
-  }, [startScenario])
+  }, [startScenario, openRefusal])
+
+  // Drive a warp into the scene whenever the store emits a new warp signal
+  useEffect(() => {
+    if (!warpSignal) return
+    window.__rpgScene?.warpTo(warpSignal.target)
+  }, [warpSignal])
 
   // Create the Phaser game once on mount
   useEffect(() => {
