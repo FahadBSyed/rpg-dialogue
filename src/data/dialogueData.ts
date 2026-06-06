@@ -1705,9 +1705,10 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   // spoken menace (→ goblin_talk_open), mushroom bribe (→ goblin_bribe_open),
   // or turning them against each other (→ goblin_divide_open).
   //
-  // Future conversation angles that still slot in here:
-  //   - an ally to be put to use
-  //   - a different species of goblin himself
+  // Conversation angles that branch from goblin_confront:
+  //   - silent terror, spoken threat, bribe, turn-them-against-each-other (divide)
+  //   - ally to be put to use (goblin_ally_*)
+  //   - claim to be a different kind of goblin (goblin_species_*)
 
   goblin_confront: {
     id: 'goblin_confront',
@@ -1769,6 +1770,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'ally',
         text: 'Hands open, easy. "You\'re about to make a fast decision about me. Slow it down — I\'m worth more to you walking around down here than I am bled out on your floor. And I think the quiet one already knows it."',
         nextNodeId: 'goblin_ally_open',
+      },
+      {
+        id: 'species',
+        text: 'Don\'t step closer. Let the firelight do the work on your face. "You keep saying \'thing.\' Look again. I\'m not a thing. I\'m kin — the kind that comes up from the wet rooms you won\'t go down to. You\'ve just never seen one this far from the deep."',
+        nextNodeId: 'goblin_species_open',
       },
     ],
   },
@@ -2163,7 +2169,353 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
   },
 
+  // ── "I'm a different kind of goblin" claim ───────────────────────────────────
+  // The hardest social path: the claim has to survive three different scrutinies.
+  // BOLE half-believes (the danger — fumble and he turns); NIM tries to monetize
+  // the claim rather than disprove it; GRIT says almost nothing and watches the
+  // body, then asks one flat question that is the real check. A Dungeon Lore
+  // passive up front decides whether you actually know goblin-kinds well enough
+  // to lean on the lore — pass it and a size_step_up rides into the final
+  // Superstition check; fail it and you improvise blind. The recurring trap is
+  // KNOWING TOO MUCH: real kin don't recite their own taxonomy, don't lecture,
+  // don't correct invented kin-law. Every over-explanation is a size_step_down.
+  //
+  //   goblin_species_open  (Dungeon Lore passive → bonus or blind)
+  //     → goblin_species_bole       (vague/physical, or name the kind plainly)
+  //     → goblin_species_overclaim  (trap: prove it with taxonomy → penalty → bole)
+  //   goblin_species_bole
+  //     → goblin_species_nim        (small confirmation, redirect to the body)
+  //     → goblin_species_explain    (trap: lecture/fake the song → penalty → nim)
+  //   goblin_species_nim
+  //     → goblin_species_grit       (accept the frame, concede something costless)
+  //     → goblin_species_correct    (trap: fix NIM's kin-law → penalty → grit)
+  //     → goblin_cornered           (refuse the frame — you break your own story)
+  //   goblin_species_grit → Superstition check → goblin_species_success / _fail
 
+  goblin_species_open: {
+    id: 'goblin_species_open',
+    narrative:
+      'The word lands differently than a threat would. Kin. It\'s a claim, not a fight, and a claim has to be answered before it can be acted on — so for one held breath all three of them are doing the same arithmetic, measuring you against the shape of every goblin they\'ve ever known and finding you both wrong and not wrong enough to dismiss. BOLE\'s mouth is open. NIM\'s eyes have narrowed to coins. GRIT has not moved at all.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Kin? It\'s — Grit, is it kin? It\'s too big to be kin. But the wet rooms — Mother said things grow different down where it\'s wet, said they come back wrong, says it like a warning but maybe wrong is just — bigger? Grit, could it be a wet-room one?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It is not KIN, Bole, kin doesn\'t walk up out of the dark and announce it\'s kin, that\'s the whole — a real one would just BE one, you\'d know, you wouldn\'t have to be TOLD. ...Although. Hm. If it were, though. If. Kin shares. Doesn\'t it. Kin owes.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'You know this lore — better than they do, which is the trap and the gift both. There are deep-kin: pale, oversized, raised by the wet rooms, spoken of and almost never seen. The story does the work for you here — but only if you wear it like a thing you ARE, not a thing you KNOW. Claim it small. Let their own legend fill the rest.',
+        },
+        successBonuses: [
+          { type: 'size_step_up', skillKey: 'superstition', sourceDescription: 'You know the deep-kin lore — the legend carries weight you don\'t have to invent' },
+        ],
+        failInterjection: {
+          speaker: 'SUPERSTITION',
+          text: 'You don\'t know the first thing about goblin-kinds — but you know the shape of a belief, and these three are already half inside one. Don\'t supply details you don\'t have. Stand in the gap their own fear is making and let them furnish it.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'vague_physical',
+        text: '(let the size and the stillness be the argument) "You said it yourself. Things grow different in the wet. You don\'t see the deep-kind because the deep-kind don\'t come up. I came up."',
+        nextNodeId: 'goblin_species_bole',
+      },
+      {
+        id: 'name_kind',
+        text: '(flat, like a dull fact) "Deep-kin. From the rooms under the rooms — the wet dark your mother told you not to go down to. She was right not to."',
+        nextNodeId: 'goblin_species_bole',
+      },
+      {
+        id: 'overclaim',
+        text: '(prove it — recite what you know) "There are six kinds below the surface kind. Mire-born, pale-kin, the gravecrawlers in the third dark — I\'m of the deep-kin, fourth dark, and I can name the others if your keeper wants the catechism."',
+        nextNodeId: 'goblin_species_overclaim',
+      },
+    ],
+  },
+
+  goblin_species_overclaim: {
+    id: 'goblin_species_overclaim',
+    narrative:
+      'You recite it cleanly, every kind in its order — and the recitation is the mistake. You watch NIM\'s face change as you talk, the suspicion curdling into something worse: certainty. A thing that has to list its own bloodline like a merchant listing stock has never lived inside that bloodline a day in its life.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Listen to it. LISTEN. It knows the whole list. Do you know our list, Bole? Could you name the six kinds in order? No — because you ARE one, you don\'t carry it around in your mouth ready to perform. Only a thing that LEARNED us talks like that. It studied us. It studied us to wear us.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'You proved knowledge when you needed to prove blood. Knowledge can be got from anywhere — a captured kinsman, a scholar\'s page, a long bad night listening at a fire. Blood is the thing you can\'t recite. Stop naming. Be vague the way a real one is vague — bored, half-remembering, certain without proof.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'superstition', sourceDescription: 'Recited the taxonomy — proved you studied them, not that you are them' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'go_vague',
+        text: '(stop performing; go dull and certain) "...Or don\'t make me list them. Kin doesn\'t quiz kin. I\'m deep-kind. You feel the wrongness of me — that\'s the only proof either of us needs."',
+        nextNodeId: 'goblin_species_bole',
+      },
+    ],
+  },
+
+  goblin_species_bole: {
+    id: 'goblin_species_bole',
+    narrative:
+      'BOLE takes a step toward you — not a threatening one, a curious one, which is worse, because it means he\'s halfway to believing and a half-belief is a thing you can lose. He\'s looking up at your face with the desperate openness of someone who wants the story to be true. And then he asks the question, the guileless one, the one that tests you precisely because he doesn\'t mean it to.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'If you\'re deep-kin — then you know the cold-song? The one for the wet rooms, the down-song, the one Mother said the deep ones sing so the dark knows them and lets them by? Sing me a little of it. Just a little. Then I\'ll know.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...That\'s a good question, Bole.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'deception',
+        successInterjection: {
+          speaker: 'DECEPTION',
+          text: 'Careful — BOLE asked for a little. Give him a lot and you\'re performing for NIM, who is praying you\'ll try to sing a song you don\'t know. You can\'t produce the cold-song. So don\'t. Refuse it the way a real one would — with weight, not with a fumble. Make the not-singing mean something.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'refuse_with_weight',
+        text: '(low, almost gentle) "The cold-song isn\'t sung up here, Bole. Up here it\'s just sound. Down there it\'s the only thing between you and what listens. I won\'t spend it on a campfire. Ask me something that costs less."',
+        nextNodeId: 'goblin_species_nim',
+      },
+      {
+        id: 'shared_hardship',
+        text: '(let the deep be a wound, not a song) "You don\'t ask a thing to sing about the wet rooms, Bole. You weren\'t down there. I was. Some of us came up so we\'d never have to hear that song again."',
+        nextNodeId: 'goblin_species_nim',
+      },
+      {
+        id: 'try_to_sing',
+        text: '(give him the song — improvise something low and strange) Hum something from the back of the throat, slow and wrong-sounding, and hope it reads as deep enough.',
+        nextNodeId: 'goblin_species_explain',
+      },
+    ],
+  },
+
+  goblin_species_explain: {
+    id: 'goblin_species_explain',
+    narrative:
+      'You make the sound — low, deliberate, strange as you can shape it — and for one second BOLE\'s face opens like a door. Then NIM laughs, a short ugly bark, because NIM has heard goblins sing and you are not singing. You are a large thing making a noise it hopes is a song, and the gap between those two things is exactly where you live now.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'THAT\'S not it. That\'s not ANY of it. That\'s a — Bole, that\'s a thing that heard ONCE that we sing and is GUESSING at it. The cold-song doesn\'t go like that. Nothing goes like that. It made up a song to prove it knew our song. Do you HEAR how backwards that is?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...it didn\'t sound right. I wanted it to. It didn\'t.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'You tried to produce a holy thing on demand and produced a counterfeit instead. The only repair is to make the counterfeit a choice — that you gave him a hollow version on purpose, because the real one isn\'t for here. Thin. But a real one would never have tried at all, so sell the refusal you should have led with.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'superstition', sourceDescription: 'Faked the cold-song — NIM has heard the real one and you have not' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'recover',
+        text: '(cut it off, cold) "No. That\'s the husk of it — what\'s left when you take the song somewhere it doesn\'t belong. That\'s all this fire gets. The whole of it stays down where it works."',
+        nextNodeId: 'goblin_species_nim',
+      },
+    ],
+  },
+
+  goblin_species_nim: {
+    id: 'goblin_species_nim',
+    narrative:
+      'NIM has given up trying to catch you in the lie. You can see the exact moment he switches tactics — because if he can\'t prove you\'re not kin, the next best thing is to act as though you are, loudly, in a way that costs you. He turns the claim into a debt.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Fine. FINE. Say it\'s kin. Then kin-law holds, doesn\'t it — the old one, the sharing one. Deep-kin that crosses surface-kin\'s fire owes the fire a tithe, that\'s LAW, that\'s older than the buckle. So tithe. Empty the coat. Kin to kin. Unless it\'d rather admit it doesn\'t know the law because it isn\'t—',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: 'There is no such kin-law. He invented it three seconds ago to make you choose: pay, and you fund his suspicion; correct him, and you prove you carry kin-law in your head like a scholar, which no real kinsman does. Both doors are his. Take the third — accept the frame, concede a thing that costs you nothing, and never touch the details.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'concede_costless',
+        text: '(to NIM, unbothered) "Kin shares danger, not coin — that\'s the law, the part of it that\'s real. And I already shared mine: I told you the deep is awake. That\'s the only tithe worth the name. The coat\'s just a coat."',
+        nextNodeId: 'goblin_species_grit',
+      },
+      {
+        id: 'correct_law',
+        text: '(scoff — set him straight) "That\'s not kin-law and you know it. The tithe runs deep-to-surface only at the turning of the dark, and only in salt or in blood, never coin. Don\'t quote law at a thing that was raised on it."',
+        nextNodeId: 'goblin_species_correct',
+      },
+      {
+        id: 'refuse_frame',
+        text: '"Kin owes you nothing. I came up from a place that would eat this whole fire and not notice. Don\'t talk to me about tithes."',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_species_correct: {
+    id: 'goblin_species_correct',
+    narrative:
+      'It works, for half a heartbeat — NIM actually falters, caught out in his invented law. And then you watch the falter turn into something far more dangerous, because you didn\'t just refuse the tithe. You out-lawyered him. You produced kin-law more detailed than his own, salt and blood and the turning of the dark, and a thing that carries that much law in its mouth has studied it the way you study a thing you weren\'t born to.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'salt or in blood... at the turning of the dark... HOW DO YOU KNOW THAT. I made up the law and you fixed it — you fixed my made-up law with a BETTER one — Bole, does that sound like kin to you or does that sound like the most studied liar either of us has ever — it has FOOTNOTES. Kin doesn\'t have footnotes.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'You won the small fight and lost the big one. The most a real kinsman ever says about kin-law is "that\'s not how it goes" — flat, bored, no detail, because to him it isn\'t knowledge, it\'s just air. You gave him the recital again. Get back to bored. Make GRIT\'s question the only thing in the room.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'superstition', sourceDescription: 'Out-lawyered NIM — proved you studied kin-law instead of living it' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'back_to_bored',
+        text: '(wave it off, suddenly tired of him) "It just goes how it goes. I don\'t keep it in my head — I keep it in my legs, like you\'re supposed to. Ask your keeper. He\'s the one still deciding."',
+        nextNodeId: 'goblin_species_grit',
+      },
+    ],
+  },
+
+  goblin_species_grit: {
+    id: 'goblin_species_grit',
+    narrative:
+      'GRIT steps forward for the first time since you spoke. He hasn\'t taken part in any of it — not BOLE\'s wonder, not NIM\'s lawyering — and that silence has been him doing the only thing that matters, which is watching the way you hold your body when you think the words are doing the work. Now he\'s close. He looks up at you, and the whip is loose in his hand, and he asks the one question the whole performance was always going to come down to.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'I\'ve met deep things. Not your story-kind — real ones, things that came up wrong out of the wet. They all had the same thing in the eyes. The down-look. Like part of them never finished climbing out. ...Show me the down-look. Right now. Or stop wasting the last quiet you\'re going to get.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'He\'s not asking for a fact. He\'s asking you to BE the thing for one second — to put the deep behind your eyes. You can\'t fake a fact you don\'t have, but you can hold a silence like it has a hole in the bottom of it. Think of the lowest, worst dark you\'ve ever stood in. Let that be what he sees. Don\'t perform it. Just remember it, and let him watch you remember.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'THE DEEP',
+        text: 'You have stood in the real dark. You didn\'t come back from it unmarked. That\'s the one true thing in this whole lie — use it. The down-look isn\'t a trick if part of you never climbed out either.',
+      },
+    ],
+    choices: [
+      {
+        id: 'give_the_look',
+        text: 'Hold his eyes. Stop performing. Let the worst dark you ever stood in rise up behind your face — and let GRIT look all the way down into it.',
+        nextNodeId: 'goblin_species_success',
+        check: { skillKey: 'superstition', failNodeId: 'goblin_species_fail' },
+      },
+    ],
+  },
+
+  goblin_species_success: {
+    id: 'goblin_species_success',
+    narrative:
+      'You don\'t reach for the deep. You let it come up on its own — the wet black of the lowest room you ever crawled out of, the cold that had opinions, the silence that was waiting — and it rises behind your eyes without any help from you, because it was always there. GRIT looks into it. And whatever he\'s checking your face against, your face passes, because for one second you are not lying. You are just remembering, and the remembering looks exactly like what he asked for.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...Huh. There it is. (a long pause, and the whip-hand lowers) I don\'t know what you are, long thing. But that\'s not a learned look. Nobody studies that into their face. Bole — back up. Give the deep-kind its road.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'I KNEW it. I knew it wasn\'t a thing to eat. (quiet, almost reverent, as you pass) ...does it ever stop? The cold. Does it ever stop being down there?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'This is — you\'re ALL — fine. FINE. But when it comes back as something with teeth, I want it remembered that I was the only one who—  ...just go. Go on. Kin.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'You didn\'t out-lie them. You found the one true thing inside the lie and stood on it, and truth holds weight a performance never can. That\'s the whole secret of the down-look: it only works on the ones who really went down. Walk like you\'re going back. Part of you always is.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Take the road they made. Don\'t look back at the fire.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_species_fail: {
+    id: 'goblin_species_fail',
+    narrative:
+      'You try to give him the look — and trying is the whole problem. GRIT watches you reach for it, watches you arrange your face into what you think the deep should look like, and the arranging is the tell. Real depth doesn\'t compose itself. It just sits there, already ruined. He sees you build the expression, and a built thing is a made thing, and a made thing is a lie.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'No. That\'s a face putting on a face. The real ones don\'t have to find the look — they can\'t lose it. You went looking for yours, which means you don\'t carry it, which means you\'ve never been down, which means you\'re a clever thing in a good coat that read about us somewhere. ...Pity. Bole, Nim. It\'s not kin. It\'s just dinner that talks.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'I SAID. From the first word — I SAID it wasn\'t — get it, get it now before it finds another story—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SUPERSTITION',
+        text: 'You went looking for the deep instead of letting it find you, and the reaching showed. The lie needed one true thing under it and you tried to fake even that. There\'s nothing left to say now. Only the other thing.',
+      },
+    ],
+    choices: [
+      { id: 'fight', text: 'The story\'s over. The hard way starts now.', nextNodeId: 'goblin_cornered' },
+    ],
+  },
+
+  // ── Spoken threat conversation ───────────────────────────────────────────────
   // The check doesn't come at the start — it has to be earned by reading the
   // room correctly. The correct read: GRIT holds the decision, NIM holds the
   // noise. Engaging NIM hands him a stage; speaking to all three means none of
