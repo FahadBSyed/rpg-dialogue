@@ -28,6 +28,8 @@ const PASS_E = { y1: 860, y2: 940, x: 800 } // center↔east, vertical seam
 
 type Room = 'center' | 'north' | 'east'
 
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+
 // Callback injected by the React wrapper so the Phaser scene can call store actions
 interface SceneCallbacks {
   startScenario: (nodeId: string, scenario: string) => void
@@ -278,34 +280,43 @@ class DungeonScene extends Phaser.Scene {
 
   private handleClick(pointer: Phaser.Input.Pointer) {
     if (this.inDialogue || this.cameraPanning) return
-    const wx = pointer.worldX
-    const wy = pointer.worldY
-    if (!this.isWalkable(wx, wy)) return
-    this.moveTarget = { x: wx, y: wy }
-    this.showClickRing(wx, wy)
+    const target = this.resolveTarget(pointer.worldX, pointer.worldY)
+    if (!target) return
+    this.moveTarget = target
+    this.showClickRing(target.x, target.y)
   }
 
-  // Returns true when a world point is on walkable floor for the current room.
-  private isWalkable(wx: number, wy: number): boolean {
+  // Resolve a click into a move target, or null if it's not reachable.
+  // Clicks inside a passage corridor are snapped to a point on the FAR side of
+  // the seam so the player always walks all the way through and the room
+  // transition reliably fires (instead of stopping short inside the doorway).
+  private resolveTarget(wx: number, wy: number): { x: number; y: number } | null {
     const { x1: nx1, x2: nx2 } = PASS_N
     const { y1: ey1, y2: ey2 } = PASS_E
-    const pad = 12 // margin from walls
+    const pad = 12
+
+    // Generous corridor bands spanning both sides of each seam.
+    const inNorthCorridor = wx >= nx1 && wx <= nx2 && wy >= 540 && wy <= 660
+    const inEastCorridor  = wy >= ey1 && wy <= ey2 && wx >= 740 && wx <= 860
 
     if (this.currentRoom === 'center') {
-      const inFloor  = wx >= pad && wx <= 800 - pad && wy >= 600 + pad && wy <= 1200 - pad
-      const inNPass  = wx >= nx1 && wx <= nx2 && wy >= 580 && wy <= 620
-      const inEPass  = wx >= 785 && wx <= 800 && wy >= ey1 && wy <= ey2
-      return inFloor || inNPass || inEPass
+      if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 560 } // into north
+      if (inEastCorridor)  return { x: 840, y: clamp(wy, ey1 + 8, ey2 - 8) } // into east
+      if (wx >= pad && wx <= 800 - pad && wy >= 600 + pad && wy <= 1200 - pad)
+        return { x: wx, y: wy }
+      return null
     }
     if (this.currentRoom === 'north') {
-      const inFloor  = wx >= pad && wx <= 800 - pad && wy >= pad && wy <= 600 - pad
-      const inSPass  = wx >= nx1 && wx <= nx2 && wy >= 580 && wy <= 620
-      return inFloor || inSPass
+      if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 640 } // into center
+      if (wx >= pad && wx <= 800 - pad && wy >= pad && wy <= 600 - pad)
+        return { x: wx, y: wy }
+      return null
     }
     // east
-    const inFloor  = wx >= 800 + pad && wx <= 1600 - pad && wy >= 600 + pad && wy <= 1200 - pad
-    const inWPass  = wx >= 785 && wx <= 815 && wy >= ey1 && wy <= ey2
-    return inFloor || inWPass
+    if (inEastCorridor) return { x: 760, y: clamp(wy, ey1 + 8, ey2 - 8) } // into center
+    if (wx >= 800 + pad && wx <= 1600 - pad && wy >= 600 + pad && wy <= 1200 - pad)
+      return { x: wx, y: wy }
+    return null
   }
 
   // ── Room transitions ─────────────────────────────────────────────────────────
@@ -317,18 +328,18 @@ class DungeonScene extends Phaser.Scene {
     const { y1: ey1, y2: ey2 } = PASS_E
 
     if (this.currentRoom === 'center') {
-      if (py <= 603 && px >= nx1 && px <= nx2) {
-        this.enterRoom('north', 400, 582)
-      } else if (px >= 793 && py >= ey1 && py <= ey2) {
-        this.enterRoom('east', 818, 900)
+      if (py <= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
+        this.enterRoom('north', 400, 560)
+      } else if (px >= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
+        this.enterRoom('east', 840, 900)
       }
     } else if (this.currentRoom === 'north') {
-      if (py >= 597 && px >= nx1 && px <= nx2) {
-        this.enterRoom('center', 400, 618)
+      if (py >= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
+        this.enterRoom('center', 400, 640)
       }
     } else if (this.currentRoom === 'east') {
-      if (px <= 807 && py >= ey1 && py <= ey2) {
-        this.enterRoom('center', 782, 900)
+      if (px <= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
+        this.enterRoom('center', 760, 900)
       }
     }
   }
