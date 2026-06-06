@@ -23,6 +23,17 @@ button {
   cursor: pointer;
 }
 
+/* Hide the native OS cursor over the Phaser canvas; the game renders its own. */
+canvas {
+  cursor: none;
+}
+
+/* The dialogue overlay sits above the canvas — restore the default cursor there
+   so players can click dialogue choices normally. */
+canvas + * {
+  cursor: default;
+}
+
 button:focus-visible {
   outline: 1px solid #c8a96e;
   outline-offset: 2px;

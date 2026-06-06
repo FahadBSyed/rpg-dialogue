@@ -7,8 +7,12 @@ import { DebugConsole } from './components/DebugConsole'
 import { DiceRoller } from './components/DiceRoller'
 import { ResultFlash } from './components/ResultFlash'
 import { ScreenShake } from './components/ScreenShake'
+import { useGameStore } from './store/gameStore'
 
 function App() {
+  const mode = useGameStore((s) => s.gameMode)
+  const inDialogue = mode === 'dialogue'
+
   return (
     <div style={styles.root}>
       <CharacterCreation />
@@ -22,8 +26,8 @@ function App() {
       <DiceRoller />
       <ResultFlash />
       <ScreenShake />
-      <DebugControls />
-      <DebugConsole />
+      {inDialogue && <DebugControls />}
+      {inDialogue && <DebugConsole />}
     </div>
   )
 }

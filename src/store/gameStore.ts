@@ -87,6 +87,7 @@ export interface CharacterSelections {
 
 interface GameState {
   gameMode: GameMode
+  activeScenario: string | null
   skills: Skills
   characterCreated: boolean
   currentNodeId: string
@@ -111,6 +112,7 @@ interface GameState {
   resultFlash: { outcome: CheckOutcome; id: number } | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
+  startScenario: (nodeId: string, scenario: string) => void
   advanceBeat: () => void
   chooseOption: (choiceIndex: number) => void
   setDebugForce: (outcome: CheckOutcome | null) => void
@@ -165,7 +167,8 @@ let penaltyIdCounter = 0
 function newPenaltyId() { return `penalty_${++penaltyIdCounter}` }
 
 export const useGameStore = create<GameState>()((set, get) => ({
-  gameMode: 'dialogue',
+  gameMode: 'exploration',
+  activeScenario: null,
 
   skills: {
     // FLESH
@@ -317,6 +320,23 @@ export const useGameStore = create<GameState>()((set, get) => ({
     }),
 
   setMode: (mode) => set({ gameMode: mode }),
+
+  // Enter dialogue from the exploration view: switch mode, set active scenario
+  // (used to filter debug tools), and navigate to the entry node fresh.
+  startScenario: (nodeId, scenario) => {
+    if (!dialogueNodes[nodeId]) return
+    set({
+      gameMode: 'dialogue',
+      activeScenario: scenario,
+      currentNodeId: nodeId,
+      beatCursor: 0,
+      revealedBeats: [],
+      pendingBonuses: [],
+      pendingPenalties: [],
+      passiveCache: {},
+      dialogueLog: [],
+    })
+  },
 
   // Reveal the next beat. Voice beats reveal directly; passive beats roll the
   // moment they are reached — on a pass they reveal a tag + message (and grant

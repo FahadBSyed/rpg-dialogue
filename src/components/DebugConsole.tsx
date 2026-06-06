@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { dialogueNodes } from '../data/dialogueData'
 
 const COMMANDS = ['goto']
-const NODE_IDS = Object.keys(dialogueNodes)
+const ALL_NODE_IDS = Object.keys(dialogueNodes)
 
 interface Suggestion {
   label: string       // what to show
@@ -18,10 +18,9 @@ function nodeHint(id: string): string {
   return words + '…'
 }
 
-// Build the list of suggestions for the current input.
-function suggest(value: string): Suggestion[] {
+// Build the list of suggestions for the current input, filtered to nodeIds.
+function suggest(value: string, nodeIds: string[]): Suggestion[] {
   const parts = value.split(/\s+/)
-  // Still typing the command word (no space committed yet)
   if (parts.length <= 1) {
     const prefix = parts[0] ?? ''
     return COMMANDS.filter((c) => c.startsWith(prefix)).map((c) => ({
@@ -32,7 +31,7 @@ function suggest(value: string): Suggestion[] {
   const [cmd, ...rest] = parts
   if (cmd === 'goto') {
     const prefix = rest.join(' ')
-    return NODE_IDS.filter((id) => id.startsWith(prefix)).map((id) => ({
+    return nodeIds.filter((id) => id.startsWith(prefix)).map((id) => ({
       label: id,
       complete: 'goto ' + id,
       hint: nodeHint(id),
@@ -48,8 +47,18 @@ export function DebugConsole() {
   const [selected, setSelected] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const gotoNode = useGameStore((s) => s.gotoNode)
+  const activeScenario = useGameStore((s) => s.activeScenario)
 
-  const suggestions = open ? suggest(value) : []
+  // Only show nodes for the active scenario (prefix match: 'goblin' → 'goblin_*')
+  const NODE_IDS = useMemo(
+    () =>
+      activeScenario
+        ? ALL_NODE_IDS.filter((id) => id.startsWith(activeScenario + '_'))
+        : [],
+    [activeScenario],
+  )
+
+  const suggestions = open ? suggest(value, NODE_IDS) : []
 
   // Keep the selection index in range as suggestions change.
   useEffect(() => {
