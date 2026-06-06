@@ -2129,7 +2129,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   goblin_threat_success: {
     id: 'goblin_threat_success',
     narrative:
-      'You talk. Low, unhurried, certain — the voice of someone reciting a thing they\'ve done before and fully expect to do again. You don\'t raise it; you don\'t have to. You tell them what the tunnels behind you look like now. You tell them what you were doing down here before they had the bad luck to be standing on your path. You give them small, specific, true-sounding things and you let the details do what details do — make a lie load-bearing. By the end of it the big one has stopped chewing and the small one has gone the colour of wet ash. You never learn whether a word of it landed as true. It lands as enough.',
+      'You give them one thing. Low, unhurried, flat — the voice of someone reporting a fact they fully expect to repeat. You don\'t raise it; you don\'t have to.\n\n"You came in off the east shaft. There were four of you then." You let that sit a half-beat. "The draft changed an hour ago. You\'ll have felt it. That was me, finishing something three days old. You\'re standing on the last of it."\n\nThen nothing. You don\'t explain it, don\'t soften it, don\'t hand them the fourth thing — you let them build that one themselves, in their own heads, out of their own fear. By the time the silence is done the big one has stopped chewing and the small one has gone the colour of wet ash. You never learn whether a word of it landed as true. It lands as enough.',
     beats: [
       {
         kind: 'voice',
