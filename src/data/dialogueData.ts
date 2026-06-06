@@ -1765,10 +1765,405 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Hands open, slow. "I\'ve been listening from the dark. That thing you\'re arguing about — I want to know who found it first."',
         nextNodeId: 'goblin_divide_open',
       },
+      {
+        id: 'ally',
+        text: 'Hands open, easy. "You\'re about to make a fast decision about me. Slow it down — I\'m worth more to you walking around down here than I am bled out on your floor. And I think the quiet one already knows it."',
+        nextNodeId: 'goblin_ally_open',
+      },
     ],
   },
 
-  // ── Spoken threat conversation ───────────────────────────────────────────────
+  // ── Ally-for-hire pitch ──────────────────────────────────────────────────────
+  // Fiodor sells himself as worth more working than dead. The puzzle: GRIT holds
+  // the decision; NIM prices everything and will auction the offer down against
+  // you if you pitch him directly. Route around NIM to GRIT, let GRIT set the
+  // terms, and the Deception check fires clean at goblin_ally_close. Pitch NIM,
+  // oversell, lead with "muscle," or take NIM's price too fast and a
+  // size_step_down rides into the check.
+  //
+  //   goblin_ally_open
+  //     → goblin_ally_offer        (right: pitch the use to GRIT)
+  //     → goblin_ally_nim_haggle   (wrong: pitch NIM — he auctions you → penalty/cornered)
+  //     → goblin_ally_oversell     (wrong: "you need me" — desperation → penalty/cornered)
+  //   goblin_ally_offer → finder / guide (clean) | fighter (→ penalty) → goblin_ally_nim_price
+  //   goblin_ally_nim_price
+  //     → goblin_ally_close        (right: hand the terms to GRIT)
+  //     → goblin_ally_eager        (wrong: accept too fast → penalty → close)
+  //     → goblin_cornered          (wrong: refuse the price — deal's dead)
+  //   goblin_ally_close → Deception check → goblin_ally_success / goblin_ally_fail
+
+  goblin_ally_open: {
+    id: 'goblin_ally_open',
+    narrative:
+      'You don\'t reach for anything. You let the offer be the only thing moving in the room — a proposition set down in the open where all three can see there\'s no blade behind it. GRIT\'s eyes track to your empty hands, then back to your face. He\'s listening. That is not the same as buying.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Worth more. Everything down here that\'s about to die says it\'s worth more. What I want to know is worth more at WHAT — and worth more to WHO.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'To US. It said worth more to us. Which means it\'s already decided what we want and now it\'s going to sell it back to us at a markup. I\'ve watched this exact pitch get a thing exactly as far as the edge of the fire.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'deception',
+        successInterjection: {
+          speaker: 'DECEPTION',
+          text: 'GRIT asked the real question — worth more to WHO. That\'s the whole lock. Aim the offer at him, and frame it as use, never as mercy. A thing like GRIT doesn\'t spare what\'s useful; he keeps it. Sell keeping, not sparing.',
+        },
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: 'NIM is the appraiser, and an appraiser only profits if the thing comes in cheap. The second you put the offer in his hands he sets your price at nothing and pockets the gap. Do not let him hold it. Hand it to the one who can\'t resell you.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'to_grit',
+        text: '(to GRIT) "Worth more to the one who has to keep three of you alive in a hole that keeps trying to empty itself. That\'s you. Not him. He counts coins. You count breathing bodies, and you\'re short."',
+        nextNodeId: 'goblin_ally_offer',
+      },
+      {
+        id: 'to_nim',
+        text: '(to NIM) "You\'re the one who counts things. So count me. A working pair of hands that already knows these tunnels — put a number on that."',
+        nextNodeId: 'goblin_ally_nim_haggle',
+      },
+      {
+        id: 'oversell',
+        text: '"You need me. You don\'t know it yet, but this hole is going to show you something you can\'t handle three-strong, and when it does you\'ll wish you\'d kept the big thing that offered to help."',
+        nextNodeId: 'goblin_ally_oversell',
+      },
+    ],
+  },
+
+  goblin_ally_offer: {
+    id: 'goblin_ally_offer',
+    narrative:
+      'It lands. Not as agreement — as the small, grudging stillness of a thing that has decided you\'re worth the cost of one more question. GRIT\'s weight settles back onto his heels. The whip stops slapping his thigh. BOLE looks between the two of you like a child watching adults decide something over his head.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Short. Maybe I\'m short. So talk to me, then — properly. What are you, that I\'d keep you instead of opening you?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'This is the frame for everything after it. Don\'t pick the answer that sounds biggest — pick the one you can hold up under NIM\'s poking. Goblins understand things that find and things that lead. They mistrust things that fight for free.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'Whatever you name, name it like it\'s the dullest fact about you. The thing you\'re bored of being good at. Pride in it reads as the pitch; boredom reads as the truth.',
+      },
+    ],
+    choices: [
+      {
+        id: 'finder',
+        text: '"A finder. I read these tunnels for what\'s in them — metal, dry ground, the stuff worth carrying out. You three fought all night over one buckle. I\'d have shown you the room it fell off in."',
+        nextNodeId: 'goblin_ally_nim_price',
+      },
+      {
+        id: 'guide',
+        text: '"A guide. I\'ve walked deeper than this and come back, which is more than most things down here can say. You move where I point and the hole stops being the thing that kills you."',
+        nextNodeId: 'goblin_ally_nim_price',
+      },
+      {
+        id: 'fighter',
+        text: '"Muscle. Look at the size of me. You point me at a thing and the thing stops being a problem. That\'s worth three goblins\' worth of not-dying."',
+        nextNodeId: 'goblin_ally_fighter',
+      },
+    ],
+  },
+
+  goblin_ally_fighter: {
+    id: 'goblin_ally_fighter',
+    narrative:
+      'The word lands wrong and you feel it land wrong — the way GRIT\'s eyes go flat, the way the grudging stillness curdles back into calculation. You led with the one thing a creature your size should never offer first.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Muscle. A thing the size of you, offering to swing for strangers it met four breaths ago. No. Things that big don\'t hire on. They take over — or they\'re running from whatever already beat them. So which is it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It\'s the second one. Look at it. Look at it deciding which lie patches the first lie. They always lead with the muscle when they\'ve got nothing under it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You handed them the one offer that makes your size a threat instead of a tool. Now every word costs more — you\'re selling up out of a hole you dug in one sentence. Pivot to something a finder would say, and say it small.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Led with "muscle" — made your size read as a thing taking over, not hiring on' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'pivot',
+        text: '(level, unbothered) "Misspoke. Not muscle — I read tunnels, not throats. The size just means I carry more out than you can."',
+        nextNodeId: 'goblin_ally_nim_price',
+      },
+    ],
+  },
+
+  goblin_ally_nim_price: {
+    id: 'goblin_ally_nim_price',
+    narrative:
+      'NIM has stopped arguing that you\'re a liar — which is worse, because it means he\'s decided you might be real, and real things can be taxed. He steps forward, the buckle still fisted in one hand, and you watch him reach for the part of this he can profit from.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Fine. FINE. Say it\'s real. Then it costs — everything real costs. You want to walk with us, you give first. The coat. Or whatever\'s sewn in the coat. Or you go back up that tunnel and bring down the thing you\'re so good at finding, and we keep the buckle till you do. Pick one. Show us it\'s real.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'That\'s — Nim, that\'s clever. That\'s actually clever. Make it pay before it gets anything. I like that one.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'deception',
+        successInterjection: {
+          speaker: 'DECEPTION',
+          text: 'The price is the trap, not the deal. Pay it and you\'re a supplicant — a thing that gives tribute isn\'t an ally, it\'s a mark. Refuse it flat and you\'re the liar NIM said you were. The move is neither: don\'t answer the appraiser at all. Make GRIT set the terms, because GRIT setting terms means GRIT has already decided to keep you.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'defer_grit',
+        text: '(to GRIT, not NIM) "I\'m not haggling with the man who counts coins. You\'re the one who has to live with whatever walks behind you in the dark. You set the terms. I\'ll meet the ones that are real."',
+        nextNodeId: 'goblin_ally_close',
+      },
+      {
+        id: 'accept_fast',
+        text: '"Done. The coat, the lot, whatever you want — just say we have a deal and let\'s move."',
+        nextNodeId: 'goblin_ally_eager',
+      },
+      {
+        id: 'refuse',
+        text: '"I\'m not paying tribute to do you a favour. The offer is the offer. Take it or swing."',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_ally_eager: {
+    id: 'goblin_ally_eager',
+    narrative:
+      'The word is out of you before you\'ve weighed it, and the speed of it lands in the room like a dropped coin — everyone hears the metal. NIM\'s whole face changes. You just told him exactly how much you want past this fire, which is the one number he was fishing for.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'See how FAST. Did you hear it? Things that mean a deal haggle the deal. Things that just want past you say yes to everything, fast, all at once, because the yes was never the point — the GETTING-PAST was the point. It just told us the whole game.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You priced yourself by how badly you wanted out, and NIM read the price off your face. An ally negotiates because an ally expects to still be here tomorrow. Only a thing that\'s leaving agrees to anything. Slow it down. Take it off the appraiser and put it back on GRIT before NIM finishes the sale.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Accepted too fast — the speed told NIM exactly how badly you want past the fire' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'recover',
+        text: '(slow, deliberate, to GRIT) "Fast because it\'s cheap to me — the coat\'s just a coat. Doesn\'t change the offer. Your call, keeper. Not his."',
+        nextNodeId: 'goblin_ally_close',
+      },
+    ],
+  },
+
+  goblin_ally_close: {
+    id: 'goblin_ally_close',
+    narrative:
+      'It comes back to GRIT, the way you spent the whole conversation steering it to. He hasn\'t spoken since the question. NIM has run out of new things to say and is now just watching GRIT\'s face, which is the tell — even NIM has decided the answer lives there. This is the seam: the breath between the last word and the decision, where the offer either holds its shape or comes apart.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'Don\'t sweeten it. The instinct now is to add one more reason — that\'s the reflex that kills deals, because a deal that needs one more reason wasn\'t closed. You set it in front of him. Let him pick it up. The silence is doing your work; don\'t step on it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'He\'s not weighing whether you\'re lying. He stopped caring about that two answers ago. He\'s weighing whether a useful thing is worth the trouble of watching it. Be worth watching. Be still.',
+      },
+    ],
+    choices: [
+      {
+        id: 'wait',
+        text: 'Say nothing more. Let GRIT set it down.',
+        nextNodeId: 'goblin_ally_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_ally_fail' },
+      },
+    ],
+  },
+
+  goblin_ally_success: {
+    id: 'goblin_ally_success',
+    narrative:
+      'GRIT looks at you for a long moment, and then he does the thing that from a creature like him passes for a handshake: he names the terms himself, out loud, in front of the other two, so the deal becomes a thing the room has witnessed and can\'t quietly un-witness later. You are not a friend. You are a tool that has been judged, for tonight, too useful to break.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'One job. You find us the room you say you can find. You walk in front, where I can see your hands the whole way. You try one thing in the dark and the whip is around your neck before the thought finishes. ...That\'s the deal. Bole. Let it pass.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Okay. Okay, Grit. (to you) You really know a room with more than one buckle in it?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'This is a mistake. This is a MISTAKE, Grit, you\'re going to remember I said — fine. FINE. But I\'m keeping the buckle.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You didn\'t sell them a friend. There\'s no such thing down here. You sold them a tool too useful to break tonight — and "tonight" is the only contract a hole like this honours. Walk in front. Keep your hands where he can see them. Be gone before tonight runs out.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Walk in front. Hands visible. Take the passage.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_ally_fail: {
+    id: 'goblin_ally_fail',
+    narrative:
+      'GRIT does the math the other way. You watch it happen — the small final shake of the head, the weight coming back up onto the balls of his feet. He found the hole in the offer, the one you couldn\'t paper over, and the hole was you.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'No. A thing as useful as you say would\'ve been used already — kept by someone who knew what it was worth. You\'re loose down here, alone, pitching to goblins. Means somebody already did this exact sum and let you walk. I don\'t take another thing\'s leavings.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'THERE it is. I said it. I said it from the start — the words run out and then you see what was under them. Get it, Grit. Get it before it tries the next pitch.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'He found the seam: the most useful version of you wouldn\'t be wandering a hole alone, selling itself to the first fire it found. There\'s no patch for that one. The offer\'s dead. Only the other thing left now.',
+      },
+    ],
+    choices: [
+      { id: 'fight', text: 'No deal, then. The hard way.', nextNodeId: 'goblin_cornered' },
+    ],
+  },
+
+  goblin_ally_nim_haggle: {
+    id: 'goblin_ally_nim_haggle',
+    narrative:
+      'NIM\'s eyes light up, and you understand your mistake in the same instant he does. You handed the offer to the one creature in the room who only makes money if you come in cheap — and he takes it, and he turns to the others, and he starts selling them a version of you priced at almost nothing.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'A NUMBER. It wants a number. All right — here\'s the number. One pair of hands, yes, attached to a thing too big to feed, too loud to sneak, too stupid to know it walked up to three blades and asked for a JOB. That\'s not worth keeping. That\'s worth taking what it\'s carrying and being done. THAT\'S the number, Bole.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...it is pretty big to feed.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'He\'s holding your price now, and every second he talks it drops. You gave the creature who profits from your worthlessness the job of deciding what you\'re worth. The only way back is to take the offer out of his hands entirely — over his head, to GRIT — and you\'ll have to do it from underneath the number he just set.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Pitched the appraiser — NIM set your value at nothing in front of the room' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'over_his_head',
+        text: '(cut past NIM, straight to GRIT) "He\'s counting what I\'m carrying. Count what I\'m worth instead — that\'s a different sum, and it\'s yours to do, not his."',
+        nextNodeId: 'goblin_ally_offer',
+      },
+      {
+        id: 'keep_haggling',
+        text: '(to NIM) "Too big to feed? I eat what I find, and I find more than you. Sit down and let me show you the difference."',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_ally_oversell: {
+    id: 'goblin_ally_oversell',
+    narrative:
+      'It comes out heavier than you meant it — closer to a warning than an offer — and the room hears the seam in it. A thing that is genuinely needed does not need to announce it. The announcing is the tell, and all three of them catch it at once.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Hear that? "You NEED me." That\'s not what help sounds like. That\'s what a thing says when it\'s got nothing left but a guess about the future and a hope you\'re scared of the dark. We LIVE in the dark. It\'s our dark.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Anything that tells me what I need is selling me the need first and itself second. I\'ve been down here longer than you\'ve been alive, long thing. I know what I need. It isn\'t you.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You sold the fear instead of the use, and they don\'t scare on schedule. There\'s one thread left: drop the prophecy entirely, name a flat concrete thing you can do, and aim it at GRIT — the keeper, never the room. You\'re climbing out of a hole now, but the climb still exists.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Oversold the need — pitched their fear to creatures who live in the dark by choice' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'pivot_use',
+        text: '(drop it, level, to GRIT) "Fair. Forget what you need. Here\'s what I do — I read these tunnels for what\'s in them, and I\'d have found you a better room than the one with one buckle in it."',
+        nextNodeId: 'goblin_ally_offer',
+      },
+      {
+        id: 'double_down',
+        text: '"Laugh now. When the deep part of this hole comes up to meet you, remember the thing that warned you and walk away."',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+
   // The check doesn't come at the start — it has to be earned by reading the
   // room correctly. The correct read: GRIT holds the decision, NIM holds the
   // noise. Engaging NIM hands him a stage; speaking to all three means none of
