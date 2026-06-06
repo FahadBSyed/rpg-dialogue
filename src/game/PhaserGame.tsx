@@ -374,7 +374,7 @@ class DungeonScene extends Phaser.Scene {
     if (this.player.y <= boxBottom) {
       this.goblinTriggered = true
       this.moveTarget = null
-      window.__rpgCallbacks?.startScenario('goblin_confront', 'goblin')
+      window.__rpgCallbacks?.startScenario('goblin_start', 'goblin')
     }
   }
 
