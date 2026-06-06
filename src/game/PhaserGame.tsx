@@ -700,7 +700,8 @@ class DungeonScene extends Phaser.Scene {
     this.tweens.add({ targets: this.player, scaleX: 0.2, scaleY: 0.2, alpha: 0, angle: 90, duration: 700, ease: 'Quad.easeIn' })
   }
 
-  // Kill all remaining goblins: bump each, then splatter, in sequence.
+  // Kill all remaining goblins: lunge into each in turn, splatter it, and stay
+  // — the player ends standing over the last body, not back where they started.
   private animKill() {
     this.player.setAlpha(1)
     const targets = [...this.aliveGoblins]
@@ -708,21 +709,7 @@ class DungeonScene extends Phaser.Scene {
     const g = this.splatterGfx ?? this.add.graphics().setDepth(3)
     this.splatterGfx = g
     targets.forEach((goblin, i) => {
-      this.time.delayedCall(i * 430, () => {
-        const dx = goblin.x - this.player.x, dy = goblin.y - this.player.y
-        const d = Math.hypot(dx, dy) || 1
-        this.tweens.add({
-          targets: this.player,
-          x: goblin.x - (dx / d) * 16, y: goblin.y - (dy / d) * 16,
-          duration: 160, yoyo: true, ease: 'Quad.easeIn',
-          onComplete: () => {
-            this.cameras.main.shake(130, 0.006)
-            this.drawSplatterBlob(g, goblin.x, goblin.y)
-            this.tweens.killTweensOf(goblin)
-            goblin.destroy()
-          },
-        })
-      })
+      this.time.delayedCall(i * 430, () => this.strikeDown(g, goblin, 200))
     })
   }
 
@@ -734,17 +721,24 @@ class DungeonScene extends Phaser.Scene {
     this.aliveGoblins = this.aliveGoblins.filter((g) => g !== victim)
     const g = this.splatterGfx ?? this.add.graphics().setDepth(3)
     this.splatterGfx = g
-    const dx = victim.x - this.player.x, dy = victim.y - this.player.y
+    this.strikeDown(g, victim, 220)
+  }
+
+  // Drive the player into a goblin (no recoil), splatter it, and leave the
+  // player resting beside the body.
+  private strikeDown(g: Phaser.GameObjects.Graphics, goblin: Phaser.GameObjects.Container, dur: number) {
+    const dx = goblin.x - this.player.x, dy = goblin.y - this.player.y
     const d = Math.hypot(dx, dy) || 1
     this.tweens.add({
       targets: this.player,
-      x: victim.x - (dx / d) * 16, y: victim.y - (dy / d) * 16,
-      duration: 180, yoyo: true, ease: 'Quad.easeIn',
+      x: goblin.x - (dx / d) * 14,
+      y: goblin.y - (dy / d) * 14,
+      duration: dur, ease: 'Quad.easeIn',
       onComplete: () => {
-        this.cameras.main.shake(140, 0.007)
-        this.drawSplatterBlob(g, victim.x, victim.y)
-        this.tweens.killTweensOf(victim)
-        victim.destroy()
+        this.cameras.main.shake(130, 0.006)
+        this.drawSplatterBlob(g, goblin.x, goblin.y)
+        this.tweens.killTweensOf(goblin)
+        goblin.destroy()
       },
     })
   }
