@@ -458,7 +458,11 @@ export function DialogueOverlay() {
   const pendingBonuses = useGameStore((s) => s.pendingBonuses)
   const pendingPenalties = useGameStore((s) => s.pendingPenalties)
 
-  const [narratorAnimating, setNarratorAnimating] = useState(true)
+  // Track which node the narrator has finished animating for. Comparing against
+  // currentNodeId gives us a value that is immediately correct on every render —
+  // no effect lag that would cause the new narrator to mount with instant=true.
+  const [narratorDoneForNode, setNarratorDoneForNode] = useState<string | null>(null)
+  const narratorAnimating = narratorDoneForNode !== currentNodeId
   const [lastBeatDone, setLastBeatDone] = useState(true)
   const [instant, setInstant] = useState(false)
   // True while we're waiting for the post-check pause to elapse before starting
@@ -492,7 +496,6 @@ export function DialogueOverlay() {
   useEffect(() => {
     const lastEntry = dialogueLog[dialogueLog.length - 1]
     const cameFromCheck = lastEntry?.type === 'check'
-    setNarratorAnimating(true)
     setLastBeatDone(true)
     setInstant(false)
     if (cameFromCheck) {
@@ -581,7 +584,7 @@ export function DialogueOverlay() {
               entry={{ type: 'narrative', speaker: 'NARRATOR', text: currentNode.narrative }}
               muted={false}
               instant={!narratorAnimating || instant}
-              onDone={() => { setNarratorAnimating(false); setInstant(false) }}
+              onDone={() => { setNarratorDoneForNode(currentNodeId); setInstant(false) }}
             />
           )}
 
