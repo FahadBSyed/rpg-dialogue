@@ -179,6 +179,16 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     choices: [],
   },
 
+  // Terminal node for emptying the chamber by driving the goblins out (they flee
+  // alive). Like goblin_cleared the player stays and the room is freely
+  // re-enterable — but there are no bodies, just an abandoned fire. Never rendered.
+  goblin_fled: {
+    id: 'goblin_fled',
+    narrative: 'The chamber is empty. The fire ticks down over an abandoned spit.',
+    beats: [],
+    choices: [],
+  },
+
   // Shown if the player tries to walk back into the goblin chamber after leaving
   // it. One choice, which routes back out to the deep room via goblin_exit.
   goblin_refuse: {
@@ -2827,7 +2837,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'continue', text: 'Walk through.', nextNodeId: 'goblin_exit' },
+      { id: 'continue', text: 'Watch them go. The chamber is yours now.', nextNodeId: 'goblin_fled' },
     ],
   },
 

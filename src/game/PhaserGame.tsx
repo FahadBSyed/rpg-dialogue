@@ -7,10 +7,12 @@ import { dialogueNodes } from '../data/dialogueData'
 // graph so the animation dispatch stays in sync with the data.
 const KILL_NODES = new Set<string>()  // killed all three → goblin_cleared
 const FLEE_NODES = new Set<string>()  // escaped / talked past → goblin_exit
+const FLED_NODES = new Set<string>()  // goblins driven out alive → goblin_fled
 for (const [nid, node] of Object.entries(dialogueNodes)) {
   for (const c of node.choices) {
     if (c.nextNodeId === 'goblin_cleared') KILL_NODES.add(nid)
     if (c.nextNodeId === 'goblin_exit') FLEE_NODES.add(nid)
+    if (c.nextNodeId === 'goblin_fled') FLED_NODES.add(nid)
   }
 }
 
@@ -91,7 +93,7 @@ class DungeonScene extends Phaser.Scene {
   // Set once the goblin chamber has been resolved and left. Makes the goblin
   // room one-way (refusal) when escaped, or fully open when cleared by killing.
   private goblinDone = false
-  private goblinOutcome: 'escaped' | 'cleared' | null = null
+  private goblinOutcome: 'escaped' | 'cleared' | 'fled' | null = null
   // Splatter graphics drawn in place of the goblins once the room is cleared.
   private splatterGfx?: Phaser.GameObjects.Graphics
   // Per-node animation state for the goblin scenario.
@@ -345,7 +347,7 @@ class DungeonScene extends Phaser.Scene {
       if (inDeepCorridor) {
         // If the chamber was cleared the door is open — snap through into north.
         // If escaped, stop just short so the refusal can fire.
-        return { x: clamp(wx, dx1 + 8, dx2 - 8), y: this.goblinOutcome === 'cleared' ? 40 : -25 }
+        return { x: clamp(wx, dx1 + 8, dx2 - 8), y: this.roomOpen() ? 40 : -25 }
       }
       if (wx >= pad && wx <= 800 - pad && wy >= -600 + pad && wy <= -pad)
         return { x: wx, y: wy }
@@ -361,7 +363,7 @@ class DungeonScene extends Phaser.Scene {
     if (this.currentRoom === 'north') {
       if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 640 } // into center
       // Once cleared, the north passage to the deep room is open.
-      if (this.goblinOutcome === 'cleared' && inDeepCorridor)
+      if (this.roomOpen() && inDeepCorridor)
         return { x: clamp(wx, dx1 + 8, dx2 - 8), y: -40 } // into deep
       if (wx >= pad && wx <= 800 - pad && wy >= pad && wy <= 600 - pad)
         return { x: wx, y: wy }
@@ -385,7 +387,7 @@ class DungeonScene extends Phaser.Scene {
 
     if (this.currentRoom === 'deep') {
       if (py >= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
-        if (this.goblinOutcome === 'cleared') {
+        if (this.roomOpen()) {
           this.enterRoom('north', 400, 40) // door open — walk back into the chamber
         }
       } else if (this.goblinOutcome === 'escaped' && py >= -30 && px >= dx1 - 10 && px <= dx2 + 10) {
@@ -403,7 +405,7 @@ class DungeonScene extends Phaser.Scene {
     } else if (this.currentRoom === 'north') {
       if (py >= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
         this.enterRoom('center', 400, 640)
-      } else if (this.goblinOutcome === 'cleared' && py <= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
+      } else if (this.roomOpen() && py <= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
         this.enterRoom('deep', 400, -40) // cleared — north passage open to the deep
       }
     } else if (this.currentRoom === 'east') {
@@ -472,7 +474,26 @@ class DungeonScene extends Phaser.Scene {
       this.currentRoom = 'north'
       this.clearGoblins()
       // Camera is already on the north room; no recenter needed.
+    } else if (target === 'emptied') {
+      // Drove the goblins out alive — stay in the chamber, no bodies, free to
+      // roam and re-enter. Remove any goblins still present (no splatter).
+      this.goblinOutcome = 'fled'
+      this.currentRoom = 'north'
+      this.removeGoblins()
     }
+  }
+
+  // Destroy any remaining goblin tokens without leaving splatters.
+  private removeGoblins() {
+    for (const c of this.aliveGoblins) { this.tweens.killTweensOf(c); c.destroy() }
+    this.aliveGoblins = []
+    this.goblinContainers = []
+  }
+
+  // The chamber is freely traversable once the goblins are gone (killed or fled),
+  // as opposed to 'escaped' where they're still alive and re-entry is refused.
+  private roomOpen() {
+    return this.goblinOutcome === 'cleared' || this.goblinOutcome === 'fled'
   }
 
   // Replace any remaining goblin tokens with red splatters where they stand.
@@ -512,12 +533,13 @@ class DungeonScene extends Phaser.Scene {
   playNodeAnim(id: string) {
     if (!id.startsWith('goblin_')) return
     // Terminal/meta nodes are handled by the warp + refusal, not animated here.
-    if (id === 'goblin_exit' || id === 'goblin_cleared' || id === 'goblin_refuse') return
+    if (id === 'goblin_exit' || id === 'goblin_cleared' || id === 'goblin_fled' || id === 'goblin_refuse') return
 
     this.setupGoblinScene()
     this.stopOrbTweens()
 
     if (KILL_NODES.has(id)) return this.animKill()
+    if (FLED_NODES.has(id)) return this.animGoblinsFlee()
     if (id === 'goblin_ambush_success') return this.animAmbushKill()
     if (id === 'goblin_fight_won_wit') return this.animFlee()
     if (FLEE_NODES.has(id)) return this.animFlee()
@@ -693,6 +715,25 @@ class DungeonScene extends Phaser.Scene {
     this.aliveGoblins.forEach((g, i) => {
       const dir = g.x < 400 ? -1 : 1
       this.tweens.add({ targets: g, x: g.x + dir * 45, duration: 420, delay: i * 50, ease: 'Quad.easeOut' })
+    })
+  }
+
+  // The goblins break and bolt for the far passage; the player holds the ground.
+  private animGoblinsFlee() {
+    this.tweens.add({ targets: this.player, x: PLAYER_FIRE.x, y: PLAYER_FIRE.y, alpha: 1, duration: 350, ease: 'Sine.easeInOut' })
+    const goblins = [...this.aliveGoblins]
+    this.aliveGoblins = []
+    goblins.forEach((g, i) => {
+      this.tweens.add({
+        targets: g,
+        x: PASSAGE_TOP.x + (i - 1) * 28,
+        y: -40,
+        alpha: 0,
+        duration: 720 + i * 120,
+        delay: i * 90,
+        ease: 'Quad.easeIn',
+        onComplete: () => { this.tweens.killTweensOf(g); g.destroy() },
+      })
     })
   }
 

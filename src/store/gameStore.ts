@@ -537,6 +537,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const EXIT_WARP: Record<string, string> = {
       goblin_exit: 'deep',
       goblin_cleared: 'cleared',
+      goblin_fled: 'emptied',
     }
     if (!choice.check && EXIT_WARP[choice.nextNodeId]) {
       const scenario = state.activeScenario ?? 'goblin'
