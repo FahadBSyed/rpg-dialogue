@@ -1,6 +1,30 @@
 import { useEffect, useRef } from 'react'
 import Phaser from 'phaser'
 import { useGameStore } from '../store/gameStore'
+import { dialogueNodes } from '../data/dialogueData'
+
+// Nodes whose continue-choice ends the scenario, derived from the dialogue
+// graph so the animation dispatch stays in sync with the data.
+const KILL_NODES = new Set<string>()  // killed all three → goblin_cleared
+const FLEE_NODES = new Set<string>()  // escaped / talked past → goblin_exit
+for (const [nid, node] of Object.entries(dialogueNodes)) {
+  for (const c of node.choices) {
+    if (c.nextNodeId === 'goblin_cleared') KILL_NODES.add(nid)
+    if (c.nextNodeId === 'goblin_exit') FLEE_NODES.add(nid)
+  }
+}
+
+// ── Goblin-scene tableau (north room, fire at 400,330) ───────────────────────
+const GOBLIN_HOME = {
+  grit: { x: 360, y: 295 },
+  nim:  { x: 305, y: 372 },
+  bole: { x: 470, y: 366 },
+}
+const FIRE_POS     = { x: 400, y: 330 }
+const PLAYER_DARK  = { x: 380, y: 545 }  // watching from the threshold
+const PLAYER_FIRE  = { x: 380, y: 448 }  // stepped into the firelight
+const ENCIRCLE     = { x: 380, y: 372, r: 74 }
+const PASSAGE_TOP  = { x: 400, y: 48 }   // the onward (north) passage mouth
 
 // ── World layout ─────────────────────────────────────────────────────────────
 //
@@ -70,6 +94,9 @@ class DungeonScene extends Phaser.Scene {
   private goblinOutcome: 'escaped' | 'cleared' | null = null
   // Splatter graphics drawn in place of the goblins once the room is cleared.
   private splatterGfx?: Phaser.GameObjects.Graphics
+  // Per-node animation state for the goblin scenario.
+  private goblinSceneReady = false
+  private aliveGoblins: Phaser.GameObjects.Container[] = []
 
   constructor() {
     super({ key: 'DungeonScene' })
@@ -426,6 +453,7 @@ class DungeonScene extends Phaser.Scene {
     this.goblinDone = true
     this.goblinTriggered = true
     this.moveTarget = null
+    this.player.setAlpha(1).setScale(1).setAngle(0) // undo any in-scene fade/shrink
 
     if (target === 'deep') {
       // Escaped/talked past — the goblins are still alive behind you. Warp into
@@ -444,30 +472,278 @@ class DungeonScene extends Phaser.Scene {
     }
   }
 
-  // Replace the three goblin tokens with red splatters where they fell.
+  // Replace any remaining goblin tokens with red splatters where they stand.
+  // Idempotent: the kill animation may already have splattered them.
   private clearGoblins() {
-    if (this.splatterGfx) return
-    const spots = this.goblinContainers.map((c) => ({ x: c.x, y: c.y }))
-    this.tweens.killTweensOf(this.goblinContainers)
-    this.goblinContainers.forEach((c) => c.destroy())
-    this.goblinContainers = []
-
-    const g = this.add.graphics().setDepth(3)
-    for (const s of spots) {
-      // A few overlapping dark-red blobs plus scattered droplets.
-      g.fillStyle(0x6e1410, 0.9)
-      g.fillCircle(s.x, s.y, 13)
-      g.fillStyle(0x8a1a12, 0.85)
-      g.fillCircle(s.x - 7, s.y + 4, 8)
-      g.fillCircle(s.x + 9, s.y - 3, 6)
-      g.fillStyle(0x5a0f0c, 0.8)
-      for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2 + s.x
-        const r = 18 + (i % 3) * 6
-        g.fillCircle(s.x + Math.cos(a) * r, s.y + Math.sin(a) * r, 2 + (i % 2))
-      }
-    }
+    const g = this.splatterGfx ?? this.add.graphics().setDepth(3)
     this.splatterGfx = g
+    const remaining = [...this.aliveGoblins]
+    this.aliveGoblins = []
+    for (const c of remaining) {
+      this.tweens.killTweensOf(c)
+      this.drawSplatterBlob(g, c.x, c.y)
+      c.destroy()
+    }
+    this.goblinContainers = []
+  }
+
+  // Draw one blood splatter at a point.
+  private drawSplatterBlob(g: Phaser.GameObjects.Graphics, x: number, y: number) {
+    g.fillStyle(0x6e1410, 0.9)
+    g.fillCircle(x, y, 13)
+    g.fillStyle(0x8a1a12, 0.85)
+    g.fillCircle(x - 7, y + 4, 8)
+    g.fillCircle(x + 9, y - 3, 6)
+    g.fillStyle(0x5a0f0c, 0.8)
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + x
+      const r = 18 + (i % 3) * 6
+      g.fillCircle(x + Math.cos(a) * r, y + Math.sin(a) * r, 2 + (i % 2))
+    }
+  }
+
+  // ── Goblin-scenario animation ────────────────────────────────────────────────
+  // Driven from React whenever currentNodeId changes while in dialogue. A small
+  // dispatcher picks an animation per node from the dialogue graph + keywords.
+
+  playNodeAnim(id: string) {
+    if (!id.startsWith('goblin_')) return
+    // Terminal/meta nodes are handled by the warp + refusal, not animated here.
+    if (id === 'goblin_exit' || id === 'goblin_cleared' || id === 'goblin_refuse') return
+
+    this.setupGoblinScene()
+    this.stopOrbTweens()
+
+    if (KILL_NODES.has(id)) return this.animKill()
+    if (id === 'goblin_ambush_success') return this.animAmbushKill()
+    if (id === 'goblin_fight_won_wit') return this.animFlee()
+    if (FLEE_NODES.has(id)) return this.animFlee()
+    if (id.includes('death')) return this.animCollapse()
+    if (id.includes('caught') || id.includes('spotted')) return this.animSpotted()
+    if (id.includes('cornered')) return this.animEncircle()
+    if (id.includes('ambush') || id.includes('fight')) return this.animFight()
+    if (id.includes('divide')) return this.animDivide()
+    if (id.includes('sneak') || id.includes('slip')) return this.animSneak()
+    if (id.includes('mushroom') || id.includes('poison') || id.includes('bribe')) return this.animToss()
+    if (id === 'goblin_start' || id === 'goblin_approach' || id === 'goblin_observe') return this.animObserve()
+    if (id.includes('confront') || id.endsWith('_open')) return this.animConfront()
+    return this.animBanter()
+  }
+
+  // First entry into the scenario: stop the idle pace, snap the cast into the
+  // fireside tableau, and frame the north room.
+  private setupGoblinScene() {
+    if (this.goblinSceneReady) return
+    this.goblinSceneReady = true
+    this.tweens.killTweensOf([this.gritContainer, this.nimContainer, this.boleContainer])
+    this.cameras.main.centerOn(ROOM_CAMERA.north.x, ROOM_CAMERA.north.y)
+    this.gritContainer.setPosition(GOBLIN_HOME.grit.x, GOBLIN_HOME.grit.y)
+    this.nimContainer.setPosition(GOBLIN_HOME.nim.x, GOBLIN_HOME.nim.y)
+    this.boleContainer.setPosition(GOBLIN_HOME.bole.x, GOBLIN_HOME.bole.y)
+    this.aliveGoblins = [this.gritContainer, this.nimContainer, this.boleContainer]
+    this.player.setPosition(PLAYER_DARK.x, PLAYER_DARK.y).setAlpha(0.85)
+  }
+
+  private stopOrbTweens() {
+    this.tweens.killTweensOf([this.player, ...this.aliveGoblins])
+    // Normalise transforms so a killed yoyo/pulse doesn't leave odd scales.
+    this.player.setScale(1).setAngle(0)
+    this.aliveGoblins.forEach((g) => g.setScale(1))
+  }
+
+  // A looping in-place hop — the visual language of banter.
+  private hop(orb: Phaser.GameObjects.Container, h = 8, dur = 300) {
+    this.tweens.add({
+      targets: orb, y: orb.y - h, duration: dur,
+      yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+    })
+  }
+
+  // ── Individual animations ─────────────────────────────────────────────────────
+
+  private animObserve() {
+    this.tweens.add({ targets: this.player, x: PLAYER_DARK.x, y: PLAYER_DARK.y, alpha: 0.55, duration: 400 })
+    // Snap any surviving goblins back to the fireside tableau (covers a fresh
+    // start and a post-death restart).
+    const homes: Array<[Phaser.GameObjects.Container, { x: number; y: number }]> = [
+      [this.gritContainer, GOBLIN_HOME.grit],
+      [this.nimContainer, GOBLIN_HOME.nim],
+      [this.boleContainer, GOBLIN_HOME.bole],
+    ]
+    for (const [c, h] of homes) if (this.aliveGoblins.includes(c)) c.setPosition(h.x, h.y)
+    this.animBanter()
+  }
+
+  private animBanter() {
+    // GRIT paces; NIM and BOLE squabble in place.
+    if (this.aliveGoblins.includes(this.gritContainer)) {
+      this.tweens.add({
+        targets: this.gritContainer, x: this.gritContainer.x + 28, duration: 1900,
+        yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
+      })
+    }
+    if (this.aliveGoblins.includes(this.nimContainer)) this.hop(this.nimContainer, 7, 300)
+    if (this.aliveGoblins.includes(this.boleContainer)) this.hop(this.boleContainer, 10, 360)
+  }
+
+  private animConfront() {
+    this.tweens.add({ targets: this.player, x: PLAYER_FIRE.x, y: PLAYER_FIRE.y, alpha: 1, duration: 600, ease: 'Sine.easeInOut' })
+    // The goblins flinch back a step, then settle into wary banter.
+    this.aliveGoblins.forEach((g, i) => {
+      this.tweens.add({ targets: g, y: g.y - 7, duration: 170, yoyo: true, delay: i * 60 })
+    })
+    this.time.delayedCall(450, () => this.animBanter())
+  }
+
+  private animSneak() {
+    // Creep, dimmed, up the left edge toward the onward passage.
+    this.player.setAlpha(0.5)
+    this.tweens.add({ targets: this.player, x: 130, y: 250, duration: 1600, ease: 'Sine.easeInOut' })
+    this.animBanter()
+  }
+
+  private animSpotted() {
+    this.player.setAlpha(1)
+    // Player flinches; goblins jolt and snap toward the player.
+    this.tweens.add({ targets: this.player, y: this.player.y + 16, duration: 110, yoyo: true })
+    this.aliveGoblins.forEach((g, i) => {
+      this.tweens.add({ targets: g, scaleX: 1.3, scaleY: 1.3, duration: 110, yoyo: true, delay: i * 40 })
+      this.tweens.add({
+        targets: g,
+        x: g.x + (this.player.x - g.x) * 0.18,
+        y: g.y + (this.player.y - g.y) * 0.18,
+        duration: 320, delay: 120, ease: 'Quad.easeOut',
+      })
+    })
+  }
+
+  private animEncircle() {
+    this.tweens.add({ targets: this.player, x: ENCIRCLE.x, y: ENCIRCLE.y, alpha: 1, duration: 420, ease: 'Sine.easeInOut' })
+    const n = this.aliveGoblins.length || 1
+    this.aliveGoblins.forEach((g, i) => {
+      const ang = -Math.PI / 2 + i * ((2 * Math.PI) / n)
+      const gx = ENCIRCLE.x + Math.cos(ang) * ENCIRCLE.r
+      const gy = ENCIRCLE.y + Math.sin(ang) * ENCIRCLE.r
+      this.tweens.add({
+        targets: g, x: gx, y: gy, duration: 520, delay: i * 70, ease: 'Sine.easeInOut',
+        onComplete: () => {
+          this.tweens.add({ targets: g, scaleX: 1.12, scaleY: 1.12, duration: 520, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+        },
+      })
+    })
+  }
+
+  private animFight() {
+    this.player.setAlpha(1)
+    if (this.aliveGoblins.length === 0) return
+    const g = this.aliveGoblins[Math.floor(Math.random() * this.aliveGoblins.length)]
+    this.bump(this.player, g)
+    this.time.delayedCall(220, () => this.bump(g, this.player))
+    this.time.delayedCall(120, () => this.cameras.main.shake(120, 0.006))
+  }
+
+  // A short lunge: `a` darts at `b` and recoils.
+  private bump(a: Phaser.GameObjects.Container | Phaser.GameObjects.Arc, b: Phaser.GameObjects.Container | Phaser.GameObjects.Arc) {
+    const dx = b.x - a.x, dy = b.y - a.y
+    const d = Math.hypot(dx, dy) || 1
+    this.tweens.add({
+      targets: a,
+      x: b.x - (dx / d) * 16,
+      y: b.y - (dy / d) * 16,
+      duration: 140, yoyo: true, ease: 'Quad.easeIn',
+    })
+  }
+
+  private animDivide() {
+    // Player edges toward the passage; NIM and BOLE round on each other.
+    this.tweens.add({ targets: this.player, x: 175, y: 300, alpha: 0.9, duration: 900, ease: 'Sine.easeInOut' })
+    const nim = this.nimContainer, bole = this.boleContainer
+    if (this.aliveGoblins.includes(nim)) {
+      this.tweens.add({ targets: nim, x: 345, y: 360, duration: 500, ease: 'Sine.easeInOut', onComplete: () => this.hop(nim, 11, 220) })
+    }
+    if (this.aliveGoblins.includes(bole)) {
+      this.tweens.add({ targets: bole, x: 445, y: 360, duration: 500, ease: 'Sine.easeInOut', onComplete: () => this.hop(bole, 11, 220) })
+    }
+  }
+
+  private animToss() {
+    // Lob a pale orb into the fire; the goblins flinch at it.
+    const proj = this.add.circle(this.player.x, this.player.y, 5, 0xbfcf9a).setDepth(6)
+    this.tweens.add({
+      targets: proj, x: FIRE_POS.x, y: FIRE_POS.y, duration: 480, ease: 'Quad.easeOut',
+      onComplete: () => {
+        proj.destroy()
+        this.aliveGoblins.forEach((g, i) =>
+          this.tweens.add({ targets: g, scaleX: 1.2, scaleY: 1.2, duration: 150, yoyo: true, delay: i * 40 }))
+      },
+    })
+    this.animBanter()
+  }
+
+  private animFlee() {
+    this.player.setAlpha(1)
+    this.tweens.add({
+      targets: this.player, x: PASSAGE_TOP.x, y: PASSAGE_TOP.y, duration: 950, ease: 'Sine.easeIn',
+      onComplete: () => this.tweens.add({ targets: this.player, alpha: 0.3, duration: 300 }),
+    })
+    // The goblins recoil to the edges as you go.
+    this.aliveGoblins.forEach((g, i) => {
+      const dir = g.x < 400 ? -1 : 1
+      this.tweens.add({ targets: g, x: g.x + dir * 45, duration: 420, delay: i * 50, ease: 'Quad.easeOut' })
+    })
+  }
+
+  private animCollapse() {
+    this.tweens.add({ targets: this.player, scaleX: 0.2, scaleY: 0.2, alpha: 0, angle: 90, duration: 700, ease: 'Quad.easeIn' })
+  }
+
+  // Kill all remaining goblins: bump each, then splatter, in sequence.
+  private animKill() {
+    this.player.setAlpha(1)
+    const targets = [...this.aliveGoblins]
+    this.aliveGoblins = []
+    const g = this.splatterGfx ?? this.add.graphics().setDepth(3)
+    this.splatterGfx = g
+    targets.forEach((goblin, i) => {
+      this.time.delayedCall(i * 430, () => {
+        const dx = goblin.x - this.player.x, dy = goblin.y - this.player.y
+        const d = Math.hypot(dx, dy) || 1
+        this.tweens.add({
+          targets: this.player,
+          x: goblin.x - (dx / d) * 16, y: goblin.y - (dy / d) * 16,
+          duration: 160, yoyo: true, ease: 'Quad.easeIn',
+          onComplete: () => {
+            this.cameras.main.shake(130, 0.006)
+            this.drawSplatterBlob(g, goblin.x, goblin.y)
+            this.tweens.killTweensOf(goblin)
+            goblin.destroy()
+          },
+        })
+      })
+    })
+  }
+
+  // Ambush: drop the pacing goblin (GRIT) in one strike, leaving the other two.
+  private animAmbushKill() {
+    this.player.setAlpha(1)
+    const victim = this.aliveGoblins.includes(this.gritContainer) ? this.gritContainer : this.aliveGoblins[0]
+    if (!victim) return
+    this.aliveGoblins = this.aliveGoblins.filter((g) => g !== victim)
+    const g = this.splatterGfx ?? this.add.graphics().setDepth(3)
+    this.splatterGfx = g
+    const dx = victim.x - this.player.x, dy = victim.y - this.player.y
+    const d = Math.hypot(dx, dy) || 1
+    this.tweens.add({
+      targets: this.player,
+      x: victim.x - (dx / d) * 16, y: victim.y - (dy / d) * 16,
+      duration: 180, yoyo: true, ease: 'Quad.easeIn',
+      onComplete: () => {
+        this.cameras.main.shake(140, 0.007)
+        this.drawSplatterBlob(g, victim.x, victim.y)
+        this.tweens.killTweensOf(victim)
+        victim.destroy()
+      },
+    })
   }
 
   // ── Called from React wrapper on mode changes ────────────────────────────────
@@ -488,6 +764,7 @@ export function PhaserGame() {
   const startScenario = useGameStore((s) => s.startScenario)
   const openRefusal = useGameStore((s) => s.openRefusal)
   const warpSignal = useGameStore((s) => s.warpSignal)
+  const currentNodeId = useGameStore((s) => s.currentNodeId)
 
   // Wire up callbacks so the Phaser scene can reach the store
   useEffect(() => {
@@ -531,6 +808,12 @@ export function PhaserGame() {
     const scene = window.__rpgScene
     if (scene) scene.setDialogueMode(mode === 'dialogue')
   }, [mode])
+
+  // Drive the per-node goblin animation as the conversation advances
+  useEffect(() => {
+    if (mode !== 'dialogue') return
+    window.__rpgScene?.playNodeAnim(currentNodeId)
+  }, [currentNodeId, mode])
 
   return (
     <div
