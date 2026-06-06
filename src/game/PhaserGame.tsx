@@ -454,6 +454,9 @@ class DungeonScene extends Phaser.Scene {
     this.goblinTriggered = true
     this.moveTarget = null
     this.player.setAlpha(1).setScale(1).setAngle(0) // undo any in-scene fade/shrink
+    // Cancel any in-flight focus-cam pan, or it would override centerOn below
+    // and drag the camera back to the chamber after we warp away.
+    this.cameras.main.panEffect.reset()
 
     if (target === 'deep') {
       // Escaped/talked past — the goblins are still alive behind you. Warp into
