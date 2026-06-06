@@ -686,7 +686,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'outwit',
         text: 'Don\'t out-fight them. Out-think them — use the room.',
         nextNodeId: 'goblin_fight_won_wit',
-        check: { skillKey: 'dungeonLore', failNodeId: 'goblin_fight3_r3_hurt' },
+        check: { skillKey: 'wayfinding', failNodeId: 'goblin_fight3_r3_hurt' },
       },
       {
         id: 'mushroom',
