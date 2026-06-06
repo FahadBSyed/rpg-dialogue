@@ -1656,13 +1656,13 @@ export const dialogueNodes: Record<string, DialogueNode> = {
   // ── Confrontation path ───────────────────────────────────────────────────────
   // Step into the firelight and engage them openly. Once revealed there's no
   // backing into the dark — every choice in goblin_confront is a committed
-  // check. Two ways to be "a threat too dangerous": wordless presence
-  // (Reputation → goblin_terrify_*) or spoken menace (Deception → goblin_threat_*).
+  // path. Four approaches: wordless presence (Reputation → goblin_terrify_*),
+  // spoken menace (→ goblin_talk_open), mushroom bribe (→ goblin_bribe_open),
+  // or turning them against each other (→ goblin_divide_open).
   //
-  // Future conversation angles slot in here as further goblin_confront choices:
+  // Future conversation angles that still slot in here:
   //   - an ally to be put to use
   //   - a different species of goblin himself
-  //   - turning the goblins on each other
 
   goblin_confront: {
     id: 'goblin_confront',
@@ -1714,6 +1714,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: '(come out of your coat with the grey handful, slow) "Before anyone reaches for anything — there\'s a thing here worth more to you than I am. Look at it before you decide."',
         nextNodeId: 'goblin_bribe_open',
         requiresUnlock: 'poison',
+      },
+      {
+        id: 'divide',
+        text: 'Hands open, slow. "I\'ve been listening from the dark. That thing you\'re arguing about — I want to know who found it first."',
+        nextNodeId: 'goblin_divide_open',
       },
     ],
   },
@@ -2479,6 +2484,353 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'fight', text: '"Have it your way." Set your feet.', nextNodeId: 'goblin_cornered' },
+    ],
+  },
+
+  // ── Divide path ─────────────────────────────────────────────────────────────
+  // The buckle dispute between NIM and BOLE was already live when Fiodor arrived.
+  // The correct play: ask one pointed question about ownership, then step back and
+  // let the existing fault run on its own. You don't have to win the argument.
+  // You need it to run long enough for you to no longer be in it.
+  //
+  // Misreads and wrong moves:
+  //   - Target GRIT's exhaustion: he answers honestly (he IS tired), but NIM
+  //     notices you working him → size_step_down on Deception
+  //   - Target BOLE directly: NIM intercepts and names the tactic before you
+  //     finish the sentence → double penalty; can redirect, but with damage
+  //   - Push the ownership point too explicitly: NIM catches the con mid-sentence,
+  //     "it's doing it, it's trying to turn us" → goblin_cornered
+  //
+  //   goblin_divide_open
+  //     → goblin_divide_nim_claim     (right read: ask about ownership)
+  //         → goblin_divide_wedge     (right: step back, let it run)
+  //             → goblin_divide_close → Deception → success / cornered
+  //         → goblin_divide_push      (wrong: name the spot too explicitly)
+  //             → goblin_cornered
+  //     → goblin_divide_grit          (risky: target GRIT's weariness)
+  //         → goblin_divide_close     (NIM noticed — penalty already applied)
+  //     → goblin_divide_bole_direct   (wrong target — NIM named it)
+  //         → goblin_divide_nim_claim (redirect; penalties carry)
+  //         → goblin_cornered
+
+  goblin_divide_open: {
+    id: 'goblin_divide_open',
+    narrative:
+      'You have the floor. The argument about the bright thing stopped when you stepped into the firelight, but it didn\'t go away — you can still see it on their faces, the exact shape of a dispute interrupted mid-breath. BOLE keeps glancing at NIM\'s hand. NIM keeps not looking at BOLE.',
+    beats: [
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'That buckle is corroded brass. Whatever NIM thinks it\'s worth, it isn\'t — any real buyer would see it before the handshake was dry. But that\'s not why it matters. It matters because they found it together and only one of them got to say mine. The value is incidental. The principle has teeth.',
+        },
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: 'NIM is tracking you. Not his hands — his eyes, the small careful movements of something that recognises when it\'s being read. The existing fault is the only lever you have in this room. Let it do the work. Go slow. Don\'t reach for it until you\'re already gone.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'ask_who',
+        text: '"That thing you\'re arguing about — I heard you from the dark. Who found it first?"',
+        nextNodeId: 'goblin_divide_nim_claim',
+      },
+      {
+        id: 'ask_grit',
+        text: '(to GRIT, quiet) "How long have you been settling their arguments?"',
+        nextNodeId: 'goblin_divide_grit',
+      },
+      {
+        id: 'bole_first',
+        text: '(to BOLE) "You found the spot before he had his hand in it, didn\'t you."',
+        nextNodeId: 'goblin_divide_bole_direct',
+      },
+    ],
+  },
+
+  goblin_divide_nim_claim: {
+    id: 'goblin_divide_nim_claim',
+    narrative:
+      'NIM\'s hand closes on the buckle. His eyes go sharp in the specific way of something that\'s been asked a question it\'s been waiting all night to be asked — and is now suspicious about the waiting.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'What\'s it to you. What does it MATTER to you who found it — you\'re not here for the buckle. Unless you are. Are you here for the buckle?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...I found the spot. That\'s all I ever said. The spot. It doesn\'t — it\'s fine, Nim. Never mind.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It matters.',
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'NIM just answered his own question. He\'s so busy defending the ownership that he\'s stopped clocking you. The dispute has the room. You\'re background noise now.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'step_back',
+        text: 'Step back. Don\'t add another word. Let it run.',
+        nextNodeId: 'goblin_divide_wedge',
+      },
+      {
+        id: 'push',
+        text: '(to NIM) "He found the spot before your hand was in it, though. That\'s half the work."',
+        nextNodeId: 'goblin_divide_push',
+      },
+    ],
+  },
+
+  goblin_divide_wedge: {
+    id: 'goblin_divide_wedge',
+    narrative:
+      'You say nothing. The absence of another word lands in the middle of the room and the room fills it in the only way a room like this can.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: '...Don\'t look at me like that, Bole.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'I\'m not looking at you like anything.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'You\'re doing the look. I know the look — you\'ve been doing the look since the crag, every time something comes up that you think you should\'ve—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'I found the spot.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'There it is. One question and the question grew legs on its own. GRIT is watching you now — not them — with the expression of something that has just realised it\'s being managed. He\'s not angry yet. That\'s the window.',
+      },
+    ],
+    choices: [
+      {
+        id: 'go',
+        text: 'Step back toward the passage. Let them finish without you.',
+        nextNodeId: 'goblin_divide_close',
+      },
+    ],
+  },
+
+  goblin_divide_grit: {
+    id: 'goblin_divide_grit',
+    narrative:
+      'GRIT goes still. Not the pacing-still — this is different, the still of something that was asked a real question in a room that doesn\'t usually contain real questions.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...Most nights, yes. One of them finds something. The other says he found it first. I stand between them until they get tired of it. Same fire, different object.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Grit—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'I\'m just answering.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'GRIT told you something honest. He answered instead of dismissing, which means he\'s more tired than he lets on. The problem is NIM heard it, and NIM is now looking at you the way a sharp thing looks at something it almost didn\'t catch.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'NIM flagged you working GRIT — he\'s watching the seams now' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'cost',
+        text: '(to GRIT) "The only question left is whether tonight costs more than it has to."',
+        nextNodeId: 'goblin_divide_close',
+      },
+    ],
+  },
+
+  goblin_divide_bole_direct: {
+    id: 'goblin_divide_bole_direct',
+    narrative:
+      'NIM is between you and BOLE before you finish the sentence. Of course he is.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'No. BOLE — eyes on me, not on it. It\'s trying to use you as a wedge. Everyone tries the big soft one first. I\'ve seen it. I\'ve seen it every time.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'He\'s not wrong.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: '...oh. Was it doing that?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'NIM has a complete catalogue of these moves and he named this one in under two seconds. GRIT agreed. BOLE is now looking at you like you\'ve been impolite. You\'ve shown your hand to the one person whose whole job is watching for hands.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'NIM named the tactic — GRIT confirmed it, the room read you' },
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'The room briefly unified against you' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'redirect',
+        text: 'Ask the right question instead. "You\'re right. I\'ll try again — who found it first?"',
+        nextNodeId: 'goblin_divide_nim_claim',
+      },
+      {
+        id: 'fight',
+        text: 'That\'s done. Set your feet.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_divide_push: {
+    id: 'goblin_divide_push',
+    narrative:
+      'NIM\'s face closes. The arguing-face goes away and the watchful-face comes back, very quickly, and you see him file what just happened.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Oh. Oh, it\'s doing it. Grit — it\'s trying to turn us on each other. It came in here and — I\'ve SEEN this. I know exactly what this is.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Yeah.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'That\'s what the whole question was FOR. The "who found it" — that was setup. It was setup for THIS.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'He had it the moment you named the specifics. NIM is a con himself — or he\'s been the target enough to know the shape. One word too far and he found the seam. The whole room is watching you with the same face now.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'NIM caught the con mid-sentence — the room unified' },
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Every one of them is now watching you the same way' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'cornered',
+        text: 'That\'s done.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_divide_close: {
+    id: 'goblin_divide_close',
+    narrative:
+      'They\'re at it now — the real argument, the one that was already alive before you arrived, about who finds things and who gets to have them and what the difference is between a spot and a hand. GRIT is standing with his back to you, watching them, doing the specific thousand-yard stare of something that has been doing this for a very long time. The passage is six feet behind you.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'Go. Don\'t reach for the ending — you don\'t need to win the argument. You need it to run long enough for you to no longer be in it. The step you\'re about to take is the only move left.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'GRIT isn\'t watching the passage. He\'s watching them. Move.',
+      },
+    ],
+    choices: [
+      {
+        id: 'slip_out',
+        text: 'One step back. Then another. Don\'t turn around.',
+        nextNodeId: 'goblin_divide_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_cornered' },
+      },
+    ],
+  },
+
+  goblin_divide_success: {
+    id: 'goblin_divide_success',
+    narrative:
+      'You back into the passage two steps, then three, and nobody stops you. NIM has his hands going. BOLE has gone the deep stubborn colour of an argument he\'s been sitting on for months. GRIT stands between them with the bearing of a mountain deciding not to move, and he lets you go — not because he doesn\'t notice, but because the room needs him more than the passage does tonight. From somewhere behind you, already muffled by stone, you hear him say something short.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'THE HAND. THE PULLING. The pulling is the whole—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'I found the SPOT, Nim. The spot comes before the hand. The spot is what makes a hand possible—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...Smart.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You didn\'t win the argument. You walked away from it while it was still running. That\'s the whole art of this particular thing — a well-placed question answers itself, in absentia, in someone else\'s voice. You were already gone when it finished.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_start' },
     ],
   },
 }
