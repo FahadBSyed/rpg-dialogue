@@ -746,6 +746,34 @@ class DungeonScene extends Phaser.Scene {
     })
   }
 
+  // ── Focus cam ─────────────────────────────────────────────────────────────────
+  // Gently drift the camera toward whoever is speaking. Player/narrator/internal
+  // skill voices recenter to the room's default framing. Only active in the
+  // goblin chamber (the refusal dialogue plays elsewhere).
+
+  focusSpeaker(speaker: string) {
+    if (this.currentRoom !== 'north') return
+    const cx = ROOM_CAMERA.north.x
+    const cy = ROOM_CAMERA.north.y
+
+    const byName: Record<string, Phaser.GameObjects.Container> = {
+      GRIT: this.gritContainer,
+      NIM: this.nimContainer,
+      BOLE: this.boleContainer,
+    }
+    const orb = byName[speaker]
+
+    let tx = cx
+    let ty = cy
+    if (orb && this.aliveGoblins.includes(orb)) {
+      // Drift partway toward the speaker — a nudge, not a full recenter.
+      tx = cx + (orb.x - cx) * 0.4
+      ty = cy + (orb.y - cy) * 0.4
+    }
+
+    this.cameras.main.pan(tx, ty, 750, 'Sine.easeInOut')
+  }
+
   // ── Called from React wrapper on mode changes ────────────────────────────────
 
   setDialogueMode(active: boolean) {
@@ -765,6 +793,7 @@ export function PhaserGame() {
   const openRefusal = useGameStore((s) => s.openRefusal)
   const warpSignal = useGameStore((s) => s.warpSignal)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
+  const revealedBeats = useGameStore((s) => s.revealedBeats)
 
   // Wire up callbacks so the Phaser scene can reach the store
   useEffect(() => {
@@ -814,6 +843,20 @@ export function PhaserGame() {
     if (mode !== 'dialogue') return
     window.__rpgScene?.playNodeAnim(currentNodeId)
   }, [currentNodeId, mode])
+
+  // Focus cam: follow the most recently revealed speaker. The current speaker is
+  // the latest revealed voice line; before any beats it's the narrator (default).
+  useEffect(() => {
+    if (mode !== 'dialogue') return
+    let speaker = 'NARRATOR'
+    for (let i = revealedBeats.length - 1; i >= 0; i--) {
+      if (revealedBeats[i].type === 'interjection') {
+        speaker = revealedBeats[i].speaker
+        break
+      }
+    }
+    window.__rpgScene?.focusSpeaker(speaker)
+  }, [revealedBeats, currentNodeId, mode])
 
   return (
     <div
