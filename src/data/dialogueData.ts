@@ -2551,6 +2551,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: '(to BOLE) "You found the spot before he had his hand in it, didn\'t you."',
         nextNodeId: 'goblin_divide_bole_direct',
       },
+      {
+        id: 'deflate',
+        text: '"That thing you\'re arguing over — I know what it is. Corroded brass. Worth nothing to any buyer who knows what they\'re looking at."',
+        nextNodeId: 'goblin_divide_deflate',
+      },
     ],
   },
 
@@ -2597,6 +2602,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: '(to NIM) "He found the spot before your hand was in it, though. That\'s half the work."',
         nextNodeId: 'goblin_divide_push',
       },
+      {
+        id: 'arbitrate',
+        text: '(to GRIT) "What do you think — finder\'s spot, or finder\'s hand?"',
+        nextNodeId: 'goblin_divide_grit_arbitrate',
+      },
     ],
   },
 
@@ -2640,6 +2650,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'go',
         text: 'Step back toward the passage. Let them finish without you.',
         nextNodeId: 'goblin_divide_close',
+      },
+      {
+        id: 'nudge',
+        text: '(to NIM, quiet) "He\'s been carrying that since before the buckle, hasn\'t he."',
+        nextNodeId: 'goblin_divide_overreach',
       },
     ],
   },
@@ -2789,13 +2804,29 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         speaker: 'DANGER SENSE',
         text: 'GRIT isn\'t watching the passage. He\'s watching them. Move.',
       },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...',
+      },
     ],
     choices: [
       {
-        id: 'slip_out',
-        text: 'One step back. Then another. Don\'t turn around.',
+        id: 'keep_walking',
+        text: 'Hold his gaze. Keep walking.',
         nextNodeId: 'goblin_divide_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_cornered' },
+      },
+      {
+        id: 'nod',
+        text: 'Nod to him. Just once.',
+        nextNodeId: 'goblin_divide_grit_nod',
+      },
+      {
+        id: 'look_away',
+        text: 'Look away before he catches your eye.',
+        nextNodeId: 'goblin_cornered',
       },
     ],
   },
@@ -2831,6 +2862,159 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
     choices: [
       { id: 'continue', text: 'Don\'t look back. Press on.', nextNodeId: 'goblin_start' },
+    ],
+  },
+
+  goblin_divide_deflate: {
+    id: 'goblin_divide_deflate',
+    narrative:
+      'The argument dies. Both of them look at you. GRIT doesn\'t move. You have just done the room the specific disservice of telling two people that the thing they\'ve been fighting over is worthless, in front of their keeper, in what was about to be a negotiation.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: '...What\'s it to you what it\'s WORTH. It\'s mine. The worth of it isn\'t the — who asked you. Who asked you what it\'s worth.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'It\'s pretty, though. I like the way it catches the fire.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Hm. Now they\'ve got something in common.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You killed the dispute. Good reading, terrible application — the argument was the only lever in the room and you told them both they were wrong to have it. Without the argument, the only thing left in the room is you.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Dismantled the dispute\'s premise — removed the only lever' },
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'Three goblins briefly aligned against the common problem' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'cornered',
+        text: 'That went wrong.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_divide_grit_arbitrate: {
+    id: 'goblin_divide_grit_arbitrate',
+    narrative:
+      'GRIT looks at you. Not at them. At you. And then, slowly, at NIM. And NIM\'s expression does something small and satisfied.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'I think you\'re asking me to take a side because you\'d find it useful.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'THERE. That\'s the move — it wants Grit invested, it wants Grit to rule on it so Grit has skin in the outcome now—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'I know, Nim.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You pulled the one person with no stake in the dispute into the dispute, and NIM named the mechanism before GRIT finished answering. All three of them now have a cleaner picture of what you\'re doing than you\'d like. And GRIT is the one who feels used.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Made the manipulation visible to GRIT — he identified it himself' },
+          { type: 'size_step_down', skillKey: 'endurance', sourceDescription: 'The room read the play and closed' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'cornered',
+        text: 'That\'s done.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_divide_overreach: {
+    id: 'goblin_divide_overreach',
+    narrative:
+      'The word lands. NIM goes quiet — the good kind of quiet, from your perspective — for about two seconds. Then his head turns.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: '...It\'s still doing it. It\'s STILL — Grit. It\'s still here. It\'s still talking. Why is it still talking.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'You reached for one more word and the reaching is what he saw. The argument was running. You were background noise. The moment you spoke you came back into focus, and NIM\'s whole job is to notice things that come back into focus.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'One word too many — came back into focus while the argument was already running' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'close',
+        text: 'Stop. Back toward the passage.',
+        nextNodeId: 'goblin_divide_close',
+      },
+      {
+        id: 'cornered',
+        text: 'Too late for that.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+  goblin_divide_grit_nod: {
+    id: 'goblin_divide_grit_nod',
+    narrative:
+      'GRIT\'s expression doesn\'t change. Then he raises his voice, just slightly. NIM hears it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'You. Wait.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Oh, NOW it\'s waiting. Now it\'s — Grit, are we doing something with it? Are we holding it?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'GRIT was going to let you through. He\'d already decided. The nod made it a transaction, and GRIT doesn\'t want to be in your transaction — he wanted to have let you go without being owed anything for it. Now he has to make a decision in front of NIM, and the decision in front of NIM is always the same one.',
+        penalties: [
+          { type: 'size_step_down', skillKey: 'deception', sourceDescription: 'Made the silent agreement visible — forced GRIT to acknowledge it in front of NIM' },
+        ],
+      },
+    ],
+    choices: [
+      {
+        id: 'cornered',
+        text: 'He was going to let you through.',
+        nextNodeId: 'goblin_cornered',
+      },
     ],
   },
 }
