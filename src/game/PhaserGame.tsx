@@ -549,6 +549,7 @@ class DungeonScene extends Phaser.Scene {
     if (id.includes('ambush') || id.includes('fight')) return this.animFight()
     if (id.includes('divide')) return this.animDivide()
     if (id.includes('sneak') || id.includes('slip')) return this.animSneak()
+    if (id === 'goblin_slip' || id === 'goblin_poison_success') return this.animPoisonStew()
     if (id.includes('mushroom') || id.includes('poison') || id.includes('bribe')) return this.animToss()
     if (id === 'goblin_start' || id === 'goblin_approach' || id === 'goblin_observe') return this.animObserve()
     if (id.includes('confront') || id.endsWith('_open')) return this.animConfront()
@@ -689,6 +690,32 @@ class DungeonScene extends Phaser.Scene {
     if (this.aliveGoblins.includes(bole)) {
       this.tweens.add({ targets: bole, x: 445, y: 360, duration: 500, ease: 'Sine.easeInOut', onComplete: () => this.hop(bole, 11, 220) })
     }
+  }
+
+  private animPoisonStew() {
+    // Player creeps dimly to the fire, works the mushroom into the meat, then retreats.
+    const savedX = this.player.x
+    const savedY = this.player.y
+    const savedAlpha = this.player.alpha
+    // Dim the player to convey stealth.
+    this.tweens.add({ targets: this.player, alpha: 0.5, duration: 200 })
+    // Creep to the fire.
+    this.tweens.add({
+      targets: this.player, x: FIRE_POS.x, y: FIRE_POS.y + 30, duration: 900, ease: 'Sine.easeInOut',
+      onComplete: () => {
+        // Brief interaction: pulse at the fire.
+        const glow = this.add.circle(FIRE_POS.x, FIRE_POS.y + 10, 8, 0x6fa84a, 0.7).setDepth(6)
+        this.tweens.add({ targets: glow, alpha: 0, scaleX: 2, scaleY: 2, duration: 500,
+          onComplete: () => glow.destroy() })
+        // Retreat into shadow after the interaction.
+        this.tweens.add({
+          targets: this.player, x: savedX, y: savedY, duration: 850, ease: 'Sine.easeInOut', delay: 450,
+          onComplete: () => this.tweens.add({ targets: this.player, alpha: savedAlpha, duration: 300 }),
+        })
+      },
+    })
+    // Goblins remain oblivious — banter as usual.
+    this.animBanter()
   }
 
   private animToss() {
