@@ -532,23 +532,51 @@ class DungeonScene extends Phaser.Scene {
   }
 
   private animChaseEast() {
-    // Break for the passage out of the east room — monster surging up close behind.
-    this.aTween({ targets: this.player, x: 800, y: 900, duration: 520, ease: 'Sine.easeIn' })
-    this.aTween({ targets: this.monsterContainer, x: 960, y: 920, duration: 560, ease: 'Sine.easeIn' })
-    this.aLater(440, () => this.enterRoom('center', 760, 900))
+    // Carry both bodies smoothly through continuous world space — switching
+    // `currentRoom`/panning the camera mid-tween rather than snapping position
+    // via enterRoom(), which would fight the in-flight motion.
+    this.aTween({
+      targets: this.player, x: 800, y: 900, duration: 420, ease: 'Sine.easeIn',
+      onComplete: () => {
+        this.currentRoom = 'center'
+        this.cameraPanning = true
+        this.cameras.main.pan(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y, 460, 'Sine.easeInOut', false,
+          (_cam: Phaser.Cameras.Scene2D.Camera, progress: number) => { if (progress === 1) this.cameraPanning = false })
+        this.aTween({ targets: this.player, x: 620, y: 880, duration: 380, ease: 'Sine.easeOut' })
+      },
+    })
+    this.aTween({
+      targets: this.monsterContainer, x: 980, y: 930, duration: 460, ease: 'Sine.easeIn',
+      onComplete: () => {
+        this.aTween({ targets: this.monsterContainer, x: 800, y: 900, duration: 420, ease: 'Sine.easeOut' })
+      },
+    })
   }
 
   private animChaseCenter() {
-    // Cut across the open floor of the center room toward the north passage.
-    this.aTween({ targets: this.player, x: 400, y: 620, duration: 560, ease: 'Sine.easeIn' })
-    this.aTween({ targets: this.monsterContainer, x: 560, y: 720, duration: 600, ease: 'Sine.easeIn' })
-    this.aLater(480, () => this.enterRoom('north', 400, 560))
+    this.aTween({
+      targets: this.player, x: 400, y: 600, duration: 480, ease: 'Sine.easeIn',
+      onComplete: () => {
+        this.currentRoom = 'north'
+        this.cameraPanning = true
+        this.cameras.main.pan(ROOM_CAMERA.north.x, ROOM_CAMERA.north.y, 460, 'Sine.easeInOut', false,
+          (_cam: Phaser.Cameras.Scene2D.Camera, progress: number) => { if (progress === 1) this.cameraPanning = false })
+        this.aTween({ targets: this.player, x: 400, y: 520, duration: 360, ease: 'Sine.easeOut' })
+      },
+    })
+    this.aTween({
+      targets: this.monsterContainer, x: 480, y: 700, duration: 520, ease: 'Sine.easeIn',
+      onComplete: () => {
+        this.aTween({ targets: this.monsterContainer, x: 420, y: 560, duration: 420, ease: 'Sine.easeOut' })
+      },
+    })
   }
 
   private animChaseArrival() {
     // Burst into the firelit chamber — the goblins scatter from the doorway.
-    this.aTween({ targets: this.player, x: 380, y: 470, duration: 420, ease: 'Sine.easeOut' })
-    this.aTween({ targets: this.monsterContainer, x: 410, y: 380, duration: 480, ease: 'Sine.easeOut' })
+    this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y, duration: 380, ease: 'Sine.easeOut' })
+    this.aTween({ targets: this.monsterContainer, x: 430, y: 360, duration: 440, ease: 'Sine.easeOut' })
+    this.formUp(360)
   }
 
   // ── Goblin proximity trigger ─────────────────────────────────────────────────
