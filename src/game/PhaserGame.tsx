@@ -603,8 +603,8 @@ class DungeonScene extends Phaser.Scene {
     // Trigger box spans the full height of the east room and 90% of its width,
     // measured from the left (passage) wall — only a thin entry strip near the
     // passage is safe, mirroring the goblin room's trigger.
-    const boxRight = 800 + 800 * 0.9 // x = 1520
-    if (this.player.x >= boxRight) {
+    const boxLeft = 800 + 800 * 0.1 // x = 880 — only the entry strip nearest the passage is safe
+    if (this.player.x >= boxLeft) {
       this.monsterTriggered = true
       this.moveTarget = null
       window.__rpgCallbacks?.startScenario('monster_start', 'monster')
