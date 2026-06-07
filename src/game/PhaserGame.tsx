@@ -469,13 +469,24 @@ class DungeonScene extends Phaser.Scene {
   // ── Warp (called from React on a warpSignal) ─────────────────────────────────
 
   warpTo(target: string) {
-    this.goblinDone = true
-    this.goblinTriggered = true
     this.moveTarget = null
     this.player.setAlpha(1).setScale(1).setAngle(0) // undo any in-scene fade/shrink
     // Cancel any in-flight focus-cam pan, or it would override centerOn below
     // and drag the camera back to the chamber after we warp away.
     this.cameras.main.panEffect.reset()
+
+    if (target === 'center') {
+      // Withdrawal — encounter is unresolved. Reset the trigger so the player
+      // can walk back in and resume later (the store remembers where they left off).
+      this.goblinTriggered = false
+      this.currentRoom = 'center'
+      this.player.setPosition(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
+      this.cameras.main.centerOn(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
+      return
+    }
+
+    this.goblinDone = true
+    this.goblinTriggered = true
 
     if (target === 'deep') {
       // Escaped/talked past — the goblins are still alive behind you. Warp into

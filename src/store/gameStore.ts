@@ -99,6 +99,10 @@ interface GameState {
   gameMode: GameMode
   activeScenario: string | null
   completedScenarios: string[]
+  // Persists across scenario resets (unlike pendingBonuses, which can be
+  // cleared/consumed) — survives a withdrawal and a later return to the room.
+  hasMushroom: boolean
+  goblinWithdrawn: boolean
   warpSignal: WarpSignal | null
   skills: Skills
   characterCreated: boolean
@@ -183,6 +187,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
   gameMode: 'exploration',
   activeScenario: null,
   completedScenarios: [],
+  hasMushroom: false,
+  goblinWithdrawn: false,
   warpSignal: null,
 
   skills: {
@@ -339,14 +345,22 @@ export const useGameStore = create<GameState>()((set, get) => ({
   // Enter dialogue from the exploration view: switch mode, set active scenario
   // (used to filter debug tools), and navigate to the entry node fresh.
   startScenario: (nodeId, scenario) => {
-    if (!dialogueNodes[nodeId]) return
+    const state = get()
+    // Resuming after a withdrawal: skip the intro/observation beats (they've
+    // already played and shouldn't replay) and pick back up at the approach —
+    // re-seeding the mushroom unlock if the player still has it banked.
+    const resuming = scenario === 'goblin' && state.goblinWithdrawn && nodeId === 'goblin_start'
+    const resumeNodeId = resuming ? 'goblin_approach' : nodeId
+    if (!dialogueNodes[resumeNodeId]) return
     set({
       gameMode: 'dialogue',
       activeScenario: scenario,
-      currentNodeId: nodeId,
+      currentNodeId: resumeNodeId,
       beatCursor: 0,
       revealedBeats: [],
-      pendingBonuses: [],
+      pendingBonuses: resuming && state.hasMushroom
+        ? [{ id: newBonusId(), type: 'unlock_choice', unlockKey: 'poison', sourceDescription: 'Corpse-veil, still in your coat' }]
+        : [],
       pendingPenalties: [],
       passiveCache: {},
       dialogueLog: [],
@@ -380,6 +394,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     const revealed = [...state.revealedBeats]
     let bonuses = state.pendingBonuses
     let penalties = state.pendingPenalties
+    let gotMushroom = false
     const force = state.debugForcePassiveOutcome
     let forceConsumed = false
     let revealedSomething = false
@@ -473,12 +488,14 @@ export const useGameStore = create<GameState>()((set, get) => ({
           })
           if (!isReplay && beat.successBonuses?.length) {
             bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
+            if (beat.successBonuses.some((b) => b.unlockKey === 'poison')) gotMushroom = true
           }
           revealedSomething = true
         } else if (passed) {
           // Silent pass — apply bonuses only on the first roll, continue loop.
           if (!isReplay && beat.successBonuses?.length) {
             bonuses = [...bonuses, ...beat.successBonuses.map((b) => ({ ...b, id: newBonusId() }))]
+            if (beat.successBonuses.some((b) => b.unlockKey === 'poison')) gotMushroom = true
           }
         } else if (beat.failInterjection) {
           revealed.push({
@@ -507,6 +524,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
     set({
       beatCursor: cursor,
       revealedBeats: revealed,
+      ...(gotMushroom ? { hasMushroom: true } : {}),
       pendingBonuses: bonuses,
       pendingPenalties: penalties,
       passiveCache: { ...state.passiveCache, ...newPassiveCache },
@@ -542,6 +560,25 @@ export const useGameStore = create<GameState>()((set, get) => ({
       goblin_cleared: 'cleared',
       goblin_fled: 'emptied',
     }
+    // Pulling back: leave the chamber unresolved and return to the center room.
+    // Doesn't mark the scenario complete — the player can come back later.
+    if (!choice.check && choice.nextNodeId === 'goblin_withdraw') {
+      set({
+        gameMode: 'exploration',
+        activeScenario: null,
+        goblinWithdrawn: true,
+        warpSignal: { target: 'center', id: (state.warpSignal?.id ?? 0) + 1 },
+        currentNodeId: choice.nextNodeId,
+        beatCursor: 0,
+        revealedBeats: [],
+        pendingBonuses: bonusesAfterUnlock,
+        pendingPenalties: state.pendingPenalties,
+        passiveCache: state.passiveCache,
+        dialogueLog: [],
+      })
+      return
+    }
+
     if (!choice.check && EXIT_WARP[choice.nextNodeId]) {
       const scenario = state.activeScenario ?? 'goblin'
       set({

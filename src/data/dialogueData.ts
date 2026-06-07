@@ -247,7 +247,22 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'Step into the firelight. All the way. Let them get a good look at what\'s walking toward them.',
         nextNodeId: 'goblin_confront',
       },
+      {
+        id: 'withdraw',
+        text: 'Pull back. Whatever this is, it doesn\'t have to be tonight.',
+        nextNodeId: 'goblin_withdraw',
+      },
     ],
+  },
+
+  // Terminal sentinel: chooseOption intercepts this nextNodeId and warps the
+  // player back to the center room without resolving the encounter. The node
+  // itself is never displayed.
+  goblin_withdraw: {
+    id: 'goblin_withdraw',
+    narrative: '',
+    beats: [],
+    choices: [],
   },
 
   goblin_observe: {
