@@ -95,9 +95,23 @@ export interface WarpSignal {
   id: number
 }
 
+export type Room = 'deep' | 'center' | 'north' | 'east'
+
+// Which rooms a given room connects to, for the navigation menu.
+export const ROOM_ADJACENCY: Record<Room, Room[]> = {
+  deep: ['north'],
+  north: ['deep', 'center'],
+  center: ['north', 'east'],
+  east: ['center'],
+}
+
 interface GameState {
   gameMode: GameMode
   activeScenario: string | null
+  currentRoom: Room
+  // Set once the goblin chamber is resolved: 'escaped' (goblins alive, room is
+  // one-way — refused on re-entry), 'cleared'/'fled' (room freely traversable).
+  goblinOutcome: 'escaped' | 'cleared' | 'fled' | null
   completedScenarios: string[]
   // Persists across scenario resets (unlike pendingBonuses, which can be
   // cleared/consumed) — survives a withdrawal and a later return to the room.
@@ -129,6 +143,7 @@ interface GameState {
   resultFlash: { outcome: CheckOutcome; id: number } | null
   finalizeCharacter: (selections: CharacterSelections) => void
   setMode: (mode: GameMode) => void
+  navigateTo: (room: Room) => void
   startScenario: (nodeId: string, scenario: string) => void
   openRefusal: () => void
   advanceBeat: () => void
@@ -187,6 +202,8 @@ function newPenaltyId() { return `penalty_${++penaltyIdCounter}` }
 export const useGameStore = create<GameState>()((set, get) => ({
   gameMode: 'exploration',
   activeScenario: null,
+  currentRoom: 'center',
+  goblinOutcome: null,
   completedScenarios: [],
   hasMushroom: false,
   goblinWithdrawn: false,
@@ -343,6 +360,26 @@ export const useGameStore = create<GameState>()((set, get) => ({
     }),
 
   setMode: (mode) => set({ gameMode: mode }),
+
+  navigateTo: (room) => {
+    const state = get()
+    if (state.gameMode !== 'exploration') return
+    if (state.currentRoom === room) return
+    if (!ROOM_ADJACENCY[state.currentRoom].includes(room)) return
+
+    if (room === 'deep') {
+      if (state.goblinOutcome === 'escaped') { get().openRefusal(); return }
+      if (state.goblinOutcome !== 'cleared' && state.goblinOutcome !== 'fled') return
+    }
+
+    set({ currentRoom: room })
+
+    if (room === 'north' && state.goblinOutcome === null) {
+      get().startScenario('goblin_start', 'goblin')
+    } else if (room === 'east' && state.monsterState === 'sleeping') {
+      get().startScenario('monster_start', 'monster')
+    }
+  },
 
   // Enter dialogue from the exploration view: switch mode, set active scenario
   // (used to filter debug tools), and navigate to the entry node fresh.
@@ -569,6 +606,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         gameMode: 'exploration',
         activeScenario: null,
         goblinWithdrawn: true,
+        currentRoom: 'center',
         warpSignal: { target: 'center', id: (state.warpSignal?.id ?? 0) + 1 },
         currentNodeId: choice.nextNodeId,
         beatCursor: 0,
@@ -592,9 +630,13 @@ export const useGameStore = create<GameState>()((set, get) => ({
     if (!choice.check && MONSTER_EXIT[choice.nextNodeId]) {
       const exit = MONSTER_EXIT[choice.nextNodeId]
       const scenario = state.activeScenario ?? 'monster'
+      const ROOM_FOR_WARP: Record<string, GameState['currentRoom']> = {
+        monster_stay: 'east', north: 'north', center: 'center',
+      }
       set({
         gameMode: 'exploration',
         activeScenario: null,
+        currentRoom: ROOM_FOR_WARP[exit.warp] ?? state.currentRoom,
         monsterState: exit.state,
         completedScenarios: exit.state === 'avoided' || state.completedScenarios.includes(scenario)
           ? state.completedScenarios
@@ -613,9 +655,18 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     if (!choice.check && EXIT_WARP[choice.nextNodeId]) {
       const scenario = state.activeScenario ?? 'goblin'
+      const warp = EXIT_WARP[choice.nextNodeId]
+      const OUTCOME_FOR_WARP: Record<string, GameState['goblinOutcome']> = {
+        deep: 'escaped', cleared: 'cleared', emptied: 'fled',
+      }
+      const ROOM_FOR_WARP: Record<string, GameState['currentRoom']> = {
+        deep: 'deep', cleared: 'north', emptied: 'north',
+      }
       set({
         gameMode: 'exploration',
         activeScenario: null,
+        currentRoom: ROOM_FOR_WARP[warp] ?? state.currentRoom,
+        goblinOutcome: OUTCOME_FOR_WARP[warp] ?? state.goblinOutcome,
         completedScenarios: state.completedScenarios.includes(scenario)
           ? state.completedScenarios
           : [...state.completedScenarios, scenario],

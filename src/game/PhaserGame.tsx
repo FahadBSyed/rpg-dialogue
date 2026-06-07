@@ -62,14 +62,21 @@ const ROOM_CAMERA = {
   east:   { x: 1200, y: 900 },
 }
 
+// Where the player token stands when freshly arriving in a room (scenario
+// animations reposition it from here as needed).
+const ROOM_ENTRY = {
+  deep:   { x: 400, y: -250 },
+  center: { x: 400, y: 950 },
+  north:  { x: 380, y: 545 },
+  east:   { x: 1000, y: 950 },
+}
+
 // Passage bounds (in world coords)
 const PASS_D = { x1: 340, x2: 460, y: 0 }   // deep↔north, horizontal seam
 const PASS_N = { x1: 340, x2: 460, y: 600 } // center↔north, horizontal seam
 const PASS_E = { y1: 860, y2: 940, x: 800 } // center↔east, vertical seam
 
 type Room = 'deep' | 'center' | 'north' | 'east'
-
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 // Callback injected by the React wrapper so the Phaser scene can call store actions
 interface SceneCallbacks {
@@ -92,20 +99,7 @@ class DungeonScene extends Phaser.Scene {
   private boleContainer!: Phaser.GameObjects.Container
   private goblinContainers: Phaser.GameObjects.Container[] = []
 
-  private cursorGfx!: Phaser.GameObjects.Graphics
-  private clickRingGfx!: Phaser.GameObjects.Graphics
-
-  private moveTarget: { x: number; y: number } | null = null
-  private readonly SPEED = 130 // px / s
-
   private currentRoom: Room = 'center'
-  private cameraPanning = false
-  private inDialogue = false
-  private goblinTriggered = false
-  // Set once the goblin chamber has been resolved and left. Makes the goblin
-  // room one-way (refusal) when escaped, or fully open when cleared by killing.
-  private goblinDone = false
-  private goblinOutcome: 'escaped' | 'cleared' | 'fled' | null = null
   // Splatter graphics drawn in place of the goblins once the room is cleared.
   private splatterGfx?: Phaser.GameObjects.Graphics
   // Per-node animation state for the goblin scenario.
@@ -118,8 +112,6 @@ class DungeonScene extends Phaser.Scene {
   private actionTimers = new Set<Phaser.Time.TimerEvent>()
 
   // ── Monster (east room) ──────────────────────────────────────────────────────
-  private monsterTriggered = false
-  private monsterDone = false
   private monsterContainer!: Phaser.GameObjects.Container
   private monsterEyes: Phaser.GameObjects.Arc[] = []
   private monsterBreathTween?: Phaser.Tweens.Tween
@@ -136,48 +128,12 @@ class DungeonScene extends Phaser.Scene {
     // Player — blue circle
     this.player = this.add.circle(400, 900, 10, 0x5599ff).setDepth(5)
 
-    // Custom cursor graphics
-    this.cursorGfx = this.add.graphics().setDepth(100)
-    this.clickRingGfx = this.add.graphics().setDepth(99)
-    this.drawCursor()
-
     // Camera: start centered on center room
     this.cameras.main.setBounds(WORLD_BOUNDS.x, WORLD_BOUNDS.y, WORLD_BOUNDS.w, WORLD_BOUNDS.h)
     this.cameras.main.centerOn(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
 
-    // Point-and-click input
-    this.input.on('pointerdown', this.handleClick, this)
-
     // Expose scene to React wrapper
     window.__rpgScene = this
-  }
-
-  // ── Per-frame update ────────────────────────────────────────────────────────
-
-  update(_time: number, delta: number) {
-    // Cursor follows pointer in world space
-    const ptr = this.input.activePointer
-    this.cursorGfx.setPosition(ptr.worldX, ptr.worldY)
-    this.cursorGfx.setVisible(!this.inDialogue)
-
-    if (this.inDialogue || this.cameraPanning || !this.moveTarget) return
-
-    const dx = this.moveTarget.x - this.player.x
-    const dy = this.moveTarget.y - this.player.y
-    const dist = Math.sqrt(dx * dx + dy * dy)
-
-    if (dist < 4) {
-      this.moveTarget = null
-      return
-    }
-
-    const step = Math.min(this.SPEED * (delta / 1000), dist)
-    this.player.x += (dx / dist) * step
-    this.player.y += (dy / dist) * step
-
-    this.checkRoomTransition()
-    this.checkGoblinTrigger()
-    this.checkMonsterTrigger()
   }
 
   // ── World drawing ───────────────────────────────────────────────────────────
@@ -373,311 +329,28 @@ class DungeonScene extends Phaser.Scene {
     })
   }
 
-  // ── Cursor ──────────────────────────────────────────────────────────────────
 
-  private drawCursor() {
-    this.cursorGfx.clear()
-    this.cursorGfx.lineStyle(1.5, 0xc8a96e, 0.85)
-    // Four short arms with a gap in the center
-    this.cursorGfx.strokeLineShape(new Phaser.Geom.Line(-9, 0, -3, 0))
-    this.cursorGfx.strokeLineShape(new Phaser.Geom.Line( 3, 0,  9, 0))
-    this.cursorGfx.strokeLineShape(new Phaser.Geom.Line(0, -9, 0, -3))
-    this.cursorGfx.strokeLineShape(new Phaser.Geom.Line(0,  3, 0,  9))
-    this.cursorGfx.fillStyle(0xc8a96e, 0.7)
-    this.cursorGfx.fillCircle(0, 0, 1.5)
-  }
 
-  private showClickRing(wx: number, wy: number) {
-    this.clickRingGfx.clear()
-    this.clickRingGfx.setPosition(wx, wy).setAlpha(1).setScale(1)
-    this.clickRingGfx.lineStyle(1.5, 0xc8a96e, 0.9)
-    this.clickRingGfx.strokeCircle(0, 0, 12)
-    this.tweens.add({
-      targets: this.clickRingGfx,
-      alpha: 0,
-      scaleX: 2,
-      scaleY: 2,
-      duration: 380,
-      ease: 'Quad.easeOut',
-      onComplete: () => {
-        this.clickRingGfx.clear().setAlpha(1).setScale(1)
-      },
-    })
-  }
-
-  // ── Input ────────────────────────────────────────────────────────────────────
-
-  private handleClick(pointer: Phaser.Input.Pointer) {
-    if (this.inDialogue || this.cameraPanning) return
-    const target = this.resolveTarget(pointer.worldX, pointer.worldY)
-    if (!target) return
-    this.moveTarget = target
-    this.showClickRing(target.x, target.y)
-  }
-
-  // Resolve a click into a move target, or null if it's not reachable.
-  // Clicks inside a passage corridor are snapped to a point on the FAR side of
-  // the seam so the player always walks all the way through and the room
-  // transition reliably fires (instead of stopping short inside the doorway).
-  private resolveTarget(wx: number, wy: number): { x: number; y: number } | null {
-    const { x1: nx1, x2: nx2 } = PASS_N
-    const { x1: dx1, x2: dx2 } = PASS_D
-    const { y1: ey1, y2: ey2 } = PASS_E
-    const pad = 12
-
-    // Generous corridor bands spanning both sides of each seam.
-    const inNorthCorridor = wx >= nx1 && wx <= nx2 && wy >= 540 && wy <= 660
-    const inDeepCorridor  = wx >= dx1 && wx <= dx2 && wy >= -60 && wy <= 60
-    const inEastCorridor  = wy >= ey1 && wy <= ey2 && wx >= 740 && wx <= 860
-
-    if (this.currentRoom === 'deep') {
-      if (inDeepCorridor) {
-        // If the chamber was cleared the door is open — snap through into north.
-        // If escaped, stop just short so the refusal can fire.
-        return { x: clamp(wx, dx1 + 8, dx2 - 8), y: this.roomOpen() ? 40 : -25 }
-      }
-      if (wx >= pad && wx <= 800 - pad && wy >= -600 + pad && wy <= -pad)
-        return { x: wx, y: wy }
-      return null
-    }
-    if (this.currentRoom === 'center') {
-      if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 560 } // into north
-      if (inEastCorridor)  return { x: 840, y: clamp(wy, ey1 + 8, ey2 - 8) } // into east
-      if (wx >= pad && wx <= 800 - pad && wy >= 600 + pad && wy <= 1200 - pad)
-        return { x: wx, y: wy }
-      return null
-    }
-    if (this.currentRoom === 'north') {
-      if (inNorthCorridor) return { x: clamp(wx, nx1 + 8, nx2 - 8), y: 640 } // into center
-      // Once cleared, the north passage to the deep room is open.
-      if (this.roomOpen() && inDeepCorridor)
-        return { x: clamp(wx, dx1 + 8, dx2 - 8), y: -40 } // into deep
-      if (wx >= pad && wx <= 800 - pad && wy >= pad && wy <= 600 - pad)
-        return { x: wx, y: wy }
-      return null
-    }
-    // east
-    if (inEastCorridor) return { x: 760, y: clamp(wy, ey1 + 8, ey2 - 8) } // into center
-    if (wx >= 800 + pad && wx <= 1600 - pad && wy >= 600 + pad && wy <= 1200 - pad)
-      return { x: wx, y: wy }
-    return null
-  }
-
-  // ── Room transitions ─────────────────────────────────────────────────────────
-
-  private checkRoomTransition() {
-    const px = this.player.x
-    const py = this.player.y
-    const { x1: nx1, x2: nx2 } = PASS_N
-    const { x1: dx1, x2: dx2 } = PASS_D
-    const { y1: ey1, y2: ey2 } = PASS_E
-
-    if (this.currentRoom === 'deep') {
-      if (py >= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
-        if (this.roomOpen()) {
-          this.enterRoom('north', 400, 40) // door open — walk back into the chamber
-        }
-      } else if (this.goblinOutcome === 'escaped' && py >= -30 && px >= dx1 - 10 && px <= dx2 + 10) {
-        // Goblins still alive behind you: refuse, and stop short.
-        this.moveTarget = null
-        this.player.setPosition(this.player.x, -70)
-        window.__rpgCallbacks?.openRefusal()
-      }
-    } else if (this.currentRoom === 'center') {
-      if (py <= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
-        this.enterRoom('north', 400, 560)
-      } else if (px >= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
-        this.enterRoom('east', 840, 900)
-      }
-    } else if (this.currentRoom === 'north') {
-      if (py >= 600 && px >= nx1 - 10 && px <= nx2 + 10) {
-        this.enterRoom('center', 400, 640)
-      } else if (this.roomOpen() && py <= 0 && px >= dx1 - 10 && px <= dx2 + 10) {
-        this.enterRoom('deep', 400, -40) // cleared — north passage open to the deep
-      }
-    } else if (this.currentRoom === 'east') {
-      if (px <= 800 && py >= ey1 - 10 && py <= ey2 + 10) {
-        this.enterRoom('center', 760, 900)
-      }
-    }
-  }
-
-  private enterRoom(room: Room, playerX: number, playerY: number) {
-    this.currentRoom = room
-    this.cameraPanning = true
-    this.moveTarget = null
-    this.player.setPosition(playerX, playerY)
-
-    const target = ROOM_CAMERA[room]
-    this.cameras.main.pan(
-      target.x, target.y,
-      480,
-      'Sine.easeInOut',
-      false,
-      (_cam: Phaser.Cameras.Scene2D.Camera, progress: number) => {
-        if (progress === 1) this.cameraPanning = false
-      },
-    )
-  }
-
-  // ── Monster chase choreography ───────────────────────────────────────────────
-  // Each leg physically carries the player (and the monster, staggered close
-  // behind) across a room boundary, timed to land roughly with its dialogue
-  // beat. Driven through aTween/aLater so a click can fast-forward it.
-
-  private animChaseWake() {
-    this.wakeMonster()
-    this.aTween({ targets: this.monsterContainer, x: this.monsterContainer.x - 26, duration: 240, ease: 'Quad.easeOut', yoyo: true })
-    this.aTween({ targets: this.player, x: this.player.x - 16, duration: 200, ease: 'Quad.easeOut', yoyo: true })
-  }
-
-  private animChaseEast() {
-    // Carry both bodies smoothly through continuous world space — switching
-    // `currentRoom`/panning the camera mid-tween rather than snapping position
-    // via enterRoom(), which would fight the in-flight motion.
-    this.aTween({
-      targets: this.player, x: 800, y: 900, duration: 420, ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.currentRoom = 'center'
-        this.cameraPanning = true
-        this.cameras.main.pan(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y, 460, 'Sine.easeInOut', false,
-          (_cam: Phaser.Cameras.Scene2D.Camera, progress: number) => { if (progress === 1) this.cameraPanning = false })
-        this.aTween({ targets: this.player, x: 620, y: 880, duration: 380, ease: 'Sine.easeOut' })
-      },
-    })
-    this.aTween({
-      targets: this.monsterContainer, x: 980, y: 930, duration: 460, ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.aTween({ targets: this.monsterContainer, x: 800, y: 900, duration: 420, ease: 'Sine.easeOut' })
-      },
-    })
-  }
-
-  private animChaseCenter() {
-    this.aTween({
-      targets: this.player, x: 400, y: 600, duration: 480, ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.currentRoom = 'north'
-        this.cameraPanning = true
-        this.cameras.main.pan(ROOM_CAMERA.north.x, ROOM_CAMERA.north.y, 460, 'Sine.easeInOut', false,
-          (_cam: Phaser.Cameras.Scene2D.Camera, progress: number) => { if (progress === 1) this.cameraPanning = false })
-        this.aTween({ targets: this.player, x: 400, y: 520, duration: 360, ease: 'Sine.easeOut' })
-      },
-    })
-    this.aTween({
-      targets: this.monsterContainer, x: 480, y: 700, duration: 520, ease: 'Sine.easeIn',
-      onComplete: () => {
-        this.aTween({ targets: this.monsterContainer, x: 420, y: 560, duration: 420, ease: 'Sine.easeOut' })
-      },
-    })
-  }
-
-  private animChaseArrival() {
-    // Burst into the firelit chamber — the goblins scatter from the doorway.
-    this.aTween({ targets: this.player, x: COMBAT.player.x, y: COMBAT.player.y, duration: 380, ease: 'Sine.easeOut' })
-    this.aTween({ targets: this.monsterContainer, x: 430, y: 360, duration: 440, ease: 'Sine.easeOut' })
-    this.formUp(360)
-  }
-
-  // ── Goblin proximity trigger ─────────────────────────────────────────────────
-
-  private checkGoblinTrigger() {
-    if (this.goblinTriggered || this.goblinDone || this.currentRoom !== 'north') return
-
-    // Trigger box spans the full width of the north room and 90% of its height,
-    // measured from the top — so the player can't slip past the goblins. Only
-    // the bottom 10% (the entry strip nearest the passage) is safe.
-    const boxBottom = 600 * 0.9 // y = 540
-    if (this.player.y <= boxBottom) {
-      this.goblinTriggered = true
-      this.moveTarget = null
-      window.__rpgCallbacks?.startScenario('goblin_start', 'goblin')
-    }
-  }
-
-  // ── Monster proximity trigger ────────────────────────────────────────────────
-
-  private checkMonsterTrigger() {
-    if (this.monsterTriggered || this.monsterDone || this.currentRoom !== 'east') return
-
-    // Trigger box spans the full height of the east room and 90% of its width,
-    // measured from the left (passage) wall — only a thin entry strip near the
-    // passage is safe, mirroring the goblin room's trigger.
-    const boxLeft = 800 + 800 * 0.1 // x = 880 — only the entry strip nearest the passage is safe
-    if (this.player.x >= boxLeft) {
-      this.monsterTriggered = true
-      this.moveTarget = null
-      window.__rpgCallbacks?.startScenario('monster_start', 'monster')
-    }
-  }
-
-  // ── Warp (called from React on a warpSignal) ─────────────────────────────────
-
+  // Visual side-effects of a scenario-exit warp. Room placement itself is
+  // driven by the `currentRoom` subscription in the React wrapper.
   warpTo(target: string) {
-    // Any warp fired while the monster encounter is mid-flight concludes it
-    // (the chase only ever resolves via a warp).
-    if (this.monsterTriggered && !this.monsterDone && target !== 'monster_stay') {
-      this.monsterDone = true
-    }
-    this.moveTarget = null
     this.player.setAlpha(1).setScale(1).setAngle(0) // undo any in-scene fade/shrink
     // Cancel any in-flight focus-cam pan, or it would override centerOn below
     // and drag the camera back to the chamber after we warp away.
     this.cameras.main.panEffect.reset()
 
-    if (target === 'center') {
-      // Withdrawal, or the chase circling back — encounter is unresolved/over.
-      // Reset the goblin trigger so a fresh approach is still possible.
-      this.goblinTriggered = false
-      this.currentRoom = 'center'
-      this.player.setPosition(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
-      this.cameras.main.centerOn(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
-      return
-    }
+    if (target === 'cleared') this.clearGoblins()
+    if (target === 'emptied') this.removeGoblins()
+  }
 
-    if (target === 'monster_stay') {
-      // Backed away without disturbing it — stays asleep, room revisitable.
-      this.monsterTriggered = false
-      return
-    }
-
-    if (target === 'north') {
-      // The chase dumps the player straight into the goblin chamber — the
-      // goblin proximity trigger is suppressed since the arrival itself (with
-      // the monster on the player's heels) already played out in the chase.
-      this.monsterTriggered = true
-      this.monsterDone = true
-      this.goblinTriggered = true
-      this.currentRoom = 'north'
-      this.player.setPosition(400, 520)
-      this.cameras.main.centerOn(ROOM_CAMERA.north.x, ROOM_CAMERA.north.y)
-      return
-    }
-
-    this.goblinDone = true
-    this.goblinTriggered = true
-
-    if (target === 'deep') {
-      // Escaped/talked past — the goblins are still alive behind you. Warp into
-      // the deep room; the chamber becomes one-way (refusal on re-entry).
-      this.goblinOutcome = 'escaped'
-      this.currentRoom = 'deep'
-      this.player.setPosition(ROOM_CAMERA.deep.x, ROOM_CAMERA.deep.y)
-      this.cameras.main.centerOn(ROOM_CAMERA.deep.x, ROOM_CAMERA.deep.y)
-    } else if (target === 'cleared') {
-      // Killed all three — stay in the chamber. Replace the goblins with
-      // splatters and leave the player free to roam (north passage now open).
-      this.goblinOutcome = 'cleared'
-      this.currentRoom = 'north'
-      this.clearGoblins()
-      // Camera is already on the north room; no recenter needed.
-    } else if (target === 'emptied') {
-      // Drove the goblins out alive — stay in the chamber, no bodies, free to
-      // roam and re-enter. Remove any goblins still present (no splatter).
-      this.goblinOutcome = 'fled'
-      this.currentRoom = 'north'
-      this.removeGoblins()
-    }
+  // Snap the player and camera into a room. Movement between rooms is now
+  // driven entirely by the navigation menu (store.currentRoom) — the scene
+  // just stages the tableau for whatever room we land in.
+  goToRoom(room: Room) {
+    this.currentRoom = room
+    const spot = ROOM_ENTRY[room]
+    this.player.setPosition(spot.x, spot.y)
+    this.cameras.main.centerOn(ROOM_CAMERA[room].x, ROOM_CAMERA[room].y)
   }
 
   // Destroy any remaining goblin tokens without leaving splatters.
@@ -685,12 +358,6 @@ class DungeonScene extends Phaser.Scene {
     for (const c of this.aliveGoblins) { this.tweens.killTweensOf(c); c.destroy() }
     this.aliveGoblins = []
     this.goblinContainers = []
-  }
-
-  // The chamber is freely traversable once the goblins are gone (killed or fled),
-  // as opposed to 'escaped' where they're still alive and re-entry is refused.
-  private roomOpen() {
-    return this.goblinOutcome === 'cleared' || this.goblinOutcome === 'fled'
   }
 
   // Replace any remaining goblin tokens with red splatters where they stand.
@@ -795,10 +462,12 @@ class DungeonScene extends Phaser.Scene {
   playNodeAnim(id: string) {
     if (id.startsWith('monster_')) {
       if (id === 'monster_start' || id === 'monster_observe' || id === 'monster_retreat') return this.animObserve()
-      if (id === 'monster_attack_open') return this.animChaseWake()
-      if (id === 'monster_chase_east') return this.animChaseEast()
-      if (id === 'monster_chase_center') return this.animChaseCenter()
-      if (id === 'monster_chase_arrival') return this.animChaseArrival()
+      // The chase itself plays out narratively now (no physical room-crossing) —
+      // just wake the creature and give it a startled lurch on the opening beat.
+      if (id === 'monster_attack_open') {
+        this.wakeMonster()
+        this.aTween({ targets: this.monsterContainer, x: this.monsterContainer.x - 26, duration: 240, ease: 'Quad.easeOut', yoyo: true })
+      }
       return
     }
     if (!id.startsWith('goblin_')) return
@@ -1357,13 +1026,6 @@ class DungeonScene extends Phaser.Scene {
     this.cameras.main.pan(tx, ty, 750, 'Sine.easeInOut')
   }
 
-  // ── Called from React wrapper on mode changes ────────────────────────────────
-
-  setDialogueMode(active: boolean) {
-    // No screen dimming — the dungeon stays fully visible behind the dialogue
-    // panel. `inDialogue` still locks movement/clicks while talking.
-    this.inDialogue = active
-  }
 }
 
 // ── React component ──────────────────────────────────────────────────────────
@@ -1375,6 +1037,7 @@ export function PhaserGame() {
   const startScenario = useGameStore((s) => s.startScenario)
   const openRefusal = useGameStore((s) => s.openRefusal)
   const warpSignal = useGameStore((s) => s.warpSignal)
+  const currentRoom = useGameStore((s) => s.currentRoom)
   const currentNodeId = useGameStore((s) => s.currentNodeId)
   const revealedBeats = useGameStore((s) => s.revealedBeats)
 
@@ -1415,11 +1078,10 @@ export function PhaserGame() {
     }
   }, [])
 
-  // Sync dialogue mode into the scene when the store mode changes
+  // Stage the scene whenever the store moves the player to a new room
   useEffect(() => {
-    const scene = window.__rpgScene
-    if (scene) scene.setDialogueMode(mode === 'dialogue')
-  }, [mode])
+    window.__rpgScene?.goToRoom(currentRoom)
+  }, [currentRoom])
 
   // Drive the per-node goblin animation as the conversation advances
   useEffect(() => {

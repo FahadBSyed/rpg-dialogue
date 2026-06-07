@@ -1,5 +1,6 @@
 import { PhaserGame } from './game/PhaserGame'
 import { DialogueOverlay } from './components/DialogueOverlay'
+import { RoomNav } from './components/RoomNav'
 import { SkillPanel } from './components/SkillPanel'
 import { CharacterCreation } from './components/CharacterCreation'
 import { DebugControls } from './components/DebugControls'
@@ -21,6 +22,7 @@ function App() {
       </div>
       <div style={styles.gameArea}>
         <PhaserGame />
+        <RoomNav />
         <DialogueOverlay />
       </div>
       <DiceRoller />
