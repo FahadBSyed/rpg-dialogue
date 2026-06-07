@@ -392,6 +392,131 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         check: { skillKey: 'deception', failNodeId: 'goblin_poison_caught' },
         requiresUnlock: 'poison',
       },
+      {
+        id: 'scout',
+        text: 'Don\'t leave yet. Read the passage mouth first — a thing that\'s been down here this long doesn\'t walk through the first door it finds without checking what\'s behind it.',
+        nextNodeId: 'goblin_scout_passage',
+        check: { skillKey: 'scavenging', failNodeId: 'goblin_scout_noise' },
+      },
+      {
+        id: 'distract',
+        text: 'Loose a piece of the rubble back toward the far wall — give the pacing one a sound to chase that isn\'t you.',
+        nextNodeId: 'goblin_distract_success',
+        check: { skillKey: 'deception', failNodeId: 'goblin_distract_fail' },
+      },
+    ],
+  },
+
+  // Scout the passage mouth before committing: a quieter, more deliberate use
+  // of the position goblin_slip already won. Success finds something useful
+  // waiting in the dark ahead; failure costs nothing but the moment of quiet.
+  goblin_scout_passage: {
+    id: 'goblin_scout_passage',
+    narrative:
+      'You let your eyes finish adjusting before your feet decide anything. The passage ahead isn\'t empty — it\'s used. There\'s a groove worn into the stone at knee height, the kind a dragged thing leaves over months, and a niche in the wall just inside the dark where someone has been stashing what they peel off the things that don\'t walk back out.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SCAVENGING',
+        text: 'A cache. Goblins squirrel things away from each other as much as from anyone else — that niche is somebody\'s secret, which means it\'s unguarded by definition. Worth the ten seconds.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Nothing breathing in there. Whatever made that groove isn\'t home right now. That\'s worth knowing for the walk out, too.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Take what\'s worth taking and go quiet into the dark.', nextNodeId: 'goblin_exit' },
+    ],
+  },
+
+  goblin_scout_noise: {
+    id: 'goblin_scout_noise',
+    narrative:
+      'You ease toward the passage mouth to read it before you commit — and your shoulder finds a loose stone you didn\'t see, and the stone finds the floor. It isn\'t loud. In a chamber this quiet, it doesn\'t have to be.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'What was that. Bole. BOLE. Something\'s in the dark by the passage—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'You know this sound — the small wrong noise that turns a room. You\'ve made it before and you\'ve survived what came after. Move now, while "something" is still a guess and not a shape.',
+      },
+    ],
+    choices: [
+      {
+        id: 'bolt',
+        text: 'Don\'t wait for the guess to become a certainty. Go.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_run_cornered' },
+      },
+    ],
+  },
+
+  // Distract: spend the position on buying a clean exit rather than spending
+  // it on the poison. A pure exfiltration play with its own failure texture —
+  // distinct from both "just walk out" and "go back and commit to the kill."
+  goblin_distract_success: {
+    id: 'goblin_distract_success',
+    narrative:
+      'You ease a fist-sized stone free of the rubble pile and let it go underhand, low and flat, toward the dark along the far wall. It lands soft, rolls, taps once against something hollow-sounding — and the pacing one\'s head snaps toward it like a hooked fish. He says something low to the others and peels off toward the sound, spear first, already composing the story of what he\'s about to find. The mouth of your passage is, for the next several seconds, the least-watched point in the room.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DECEPTION',
+        text: 'A lie doesn\'t need words. It needs a shape that something else will finish believing on its own. He\'ll spend a full minute hunting the thing that made that sound. There was never a thing.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Go look. Quiet. If it\'s nothing, come back quiet too — I am not in the mood for two of you jumping at stones tonight.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'That\'s your gap. It will not be wider than this. Take it now.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Go, while he\'s hunting a noise that has already stopped existing.', nextNodeId: 'goblin_exit' },
+    ],
+  },
+
+  goblin_distract_fail: {
+    id: 'goblin_distract_fail',
+    narrative:
+      'You loose the stone and it goes wrong in the smallest possible way — too far, too flat, a crack against stone instead of a soft tumbling roll, the unmistakable sound of a thing that was *thrown* rather than a thing that *fell*. The pacing one doesn\'t go hunt a noise. He goes still, and then he turns, slow, toward the only direction a throw could have come from.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'That didn\'t fall. Things don\'t throw themselves, Grit. Something threw that.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Wrong kind of sound, wrong reaction, and now three goblins are looking at exactly where you are. You know this turn. It only goes one direction from here.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        text: 'Up and out. The passage is still behind you and they haven\'t crossed the floor yet. That\'s the whole window.',
+      },
+    ],
+    choices: [
+      {
+        id: 'bolt',
+        text: 'Don\'t wait for it to become certain. Run for the passage now.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_run_cornered' },
+      },
     ],
   },
 
@@ -1880,8 +2005,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       {
         id: 'silent',
         text: 'Say nothing. Let the silence and the size of you do the work.',
-        nextNodeId: 'goblin_terrify_success',
-        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
+        nextNodeId: 'goblin_menace_read',
       },
       {
         id: 'threat',
@@ -2883,6 +3007,127 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         nextNodeId: 'goblin_threat_success',
         check: { skillKey: 'deception', failNodeId: 'goblin_threat_fail' },
       },
+    ],
+  },
+
+  // The wordless read: the silence has landed *somewhere* — the question is
+  // what the player does with the half-second before it sets. Three readings
+  // of the same frozen room, three different uses of it.
+  goblin_menace_read: {
+    id: 'goblin_menace_read',
+    narrative:
+      'You don\'t move and you don\'t speak, and for one stretched breath the chamber holds completely still around you. The pacing one has stopped pacing. The arguing pair have stopped arguing. Something is happening behind their eyes — you can\'t read which thing yet, only that the silence has landed *somewhere*, and it is yours to spend.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'There. The little one\'s weight just shifted toward the passage — that\'s a body getting ready to run, not fight. The big one hasn\'t decided. The pacing one is reading you the way you\'re reading them. Whatever you do next, do it before any of the three of them finish that sentence in their heads.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'You know this half-second. You\'ve stood in it before, on both sides of it. It doesn\'t last. Spend it.',
+      },
+    ],
+    choices: [
+      {
+        id: 'press',
+        text: 'Lean into it. Let the silence finish the work it started — become the worst thing they imagined.',
+        nextNodeId: 'goblin_terrify_success',
+        check: { skillKey: 'reputation', failNodeId: 'goblin_terrify_fail' },
+      },
+      {
+        id: 'ease',
+        text: 'Let it ebb, just slightly. Give them the half-step of room a cornered thing needs to choose running over fighting.',
+        nextNodeId: 'goblin_menace_standoff',
+      },
+      {
+        id: 'strike',
+        text: 'They\'re frozen. That won\'t last — and it will never be this open again. Close the gap now.',
+        nextNodeId: 'goblin_menace_strike_open',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+      },
+    ],
+  },
+
+  // Ease off: a wordless de-escalation. No check — backing off a half-step is
+  // strictly lower-risk than holding the stare or striking, by design. It
+  // resolves into the same clean exit as a successful terrify, by a quieter road.
+  goblin_menace_standoff: {
+    id: 'goblin_menace_standoff',
+    narrative:
+      'You let the silence soften — not break, just loosen, the way a held breath loosens before it has to become a word. It\'s a small thing. It\'s enough. You\'ve given the cornered animal the one thing it actually needed: a direction that isn\'t through you. The pacing one takes it first, sliding along the wall toward the passage with his eyes still on you the whole way. The other two follow without anyone saying go. Nobody runs. Nobody has to. You watch three goblins choose, very carefully, not to find out what you are.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: '...Out. Slow. Don\'t run — don\'t give it a reason. Just. Out.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'REPUTATION',
+        text: 'That\'s a harder thing than the stare, and a rarer one. Anyone large enough can make a room afraid. It takes something else to let the room save its own face on the way out the door.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Let them go all the way. Don\'t close the distance, don\'t call after them. The half-step you gave them is the only reason this is ending quietly — don\'t take it back now.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Watch them go. The chamber empties on its own.', nextNodeId: 'goblin_fled' },
+    ],
+  },
+
+  // Strike while they're still frozen: the highest-risk reading of the half-second.
+  goblin_menace_strike_open: {
+    id: 'goblin_menace_strike_open',
+    narrative:
+      'No more half-second. You close the distance in three strides while they are still deciding whether to be afraid, and the pacing one is still working out which way to break when you reach him.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        anim: 'strike',
+        text: 'Now. While the deciding is still happening. A thing that\'s deciding hasn\'t braced yet.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'MOVE — it\'s not stopped, it was never stopped, GRIT—',
+      },
+    ],
+    choices: [
+      {
+        id: 'fight',
+        text: 'Take him down before the other two finish reacting.',
+        nextNodeId: 'goblin_menace_strike_won',
+        check: { skillKey: 'endurance', failNodeId: 'goblin_cornered' },
+      },
+    ],
+  },
+
+  goblin_menace_strike_won: {
+    id: 'goblin_menace_strike_won',
+    narrative:
+      'He goes down before he finishes turning, and for one full second the other two simply stare at the space where he was standing. That second is the whole fight. By the time it ends you are already moving past them, and they are already deciding — independently, neither one waiting on the other — that whatever this was about, it wasn\'t about this. The fire ticks on, untended. Nobody follows you to the passage.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Grit — Grit, get — oh. Oh, it doesn\'t. It\'s not getting up, Nim, it\'s not—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Don\'t wait to see how it lands on them. You already know — you\'ve watched a room learn this lesson before. Walk while they\'re still learning it.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Leave them with it. Take the passage.', nextNodeId: 'goblin_exit' },
     ],
   },
 

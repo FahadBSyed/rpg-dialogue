@@ -651,6 +651,13 @@ class DungeonScene extends Phaser.Scene {
     // the edge of violence.
     if (id.startsWith('goblin_fight_talk') || id === 'goblin_fight_bole_appeal' || id === 'goblin_fight_bole_plea') return this.animHold()
     if (id === 'goblin_truce_open' || id === 'goblin_truce_fail' || id === 'goblin_talk_collapse') return this.animHold()
+    // The wordless read: the room freezes mid-breath while the player decides
+    // what to do with the half-second the silence bought.
+    if (id === 'goblin_menace_read') return this.animHold()
+    if (id === 'goblin_menace_standoff') return this.animTrucePass()
+    if (id === 'goblin_menace_strike_open' || id === 'goblin_menace_strike_won') return this.animFight()
+    if (id === 'goblin_scout_passage' || id === 'goblin_scout_noise') return this.animObserve()
+    if (id === 'goblin_distract_success' || id === 'goblin_distract_fail') return this.animSneak()
 
     if (id.includes('ambush') || id.includes('fight')) return this.animFight() // generic fallback
     if (id.includes('divide')) return this.animDivide()
