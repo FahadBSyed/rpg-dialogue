@@ -624,6 +624,8 @@ class DungeonScene extends Phaser.Scene {
     if (FLED_NODES.has(id)) return this.animGoblinsFlee()
     if (id === 'goblin_ambush_success') return this.animAmbushKill()
     if (id === 'goblin_fight_won_wit') return this.animFlee()
+    // Truce: the goblins step aside and let you walk the road, not a flee.
+    if (id === 'goblin_truce_success') return this.animTrucePass()
     if (FLEE_NODES.has(id)) return this.animFlee()
     if (id.includes('death')) return this.animCollapse()
     // Caught, then choosing to rise into the light — a confront, not the jolt.
@@ -645,8 +647,10 @@ class DungeonScene extends Phaser.Scene {
     if (id === 'goblin_ambush_overextended') return this.animOverextend()
     // The corpse-veil bursts between Fiodor and the goblins — not in the fire.
     if (id === 'goblin_mushroom2' || id === 'goblin_mushroom3') return this.animSporeBurst()
-    // Mid-fight talk: the room holds its breath at the edge of violence.
+    // Mid-fight talk and the negotiation curdling: the room holds its breath at
+    // the edge of violence.
     if (id.startsWith('goblin_fight_talk') || id === 'goblin_fight_bole_appeal' || id === 'goblin_fight_bole_plea') return this.animHold()
+    if (id === 'goblin_truce_open' || id === 'goblin_truce_fail' || id === 'goblin_talk_collapse') return this.animHold()
 
     if (id.includes('ambush') || id.includes('fight')) return this.animFight() // generic fallback
     if (id.includes('divide')) return this.animDivide()
@@ -1035,6 +1039,20 @@ class DungeonScene extends Phaser.Scene {
     })
     // Goblins remain oblivious — banter as usual.
     this.animBanter()
+  }
+
+  // Truce granted: the goblins step aside — deliberate, unafraid — and Fiodor
+  // walks the road slow and open. The calm counterpart to animFlee.
+  private animTrucePass() {
+    this.player.setAlpha(1)
+    this.aliveGoblins.forEach((g, i) => {
+      const dir = g.x < FIRE_POS.x ? -1 : 1
+      this.aTween({ targets: g, x: g.x + dir * 55, duration: 600, delay: i * 70, ease: 'Sine.easeInOut' })
+    })
+    this.aTween({
+      targets: this.player, x: PASSAGE_TOP.x, y: PASSAGE_TOP.y, duration: 1400, delay: 300, ease: 'Sine.easeInOut',
+      onComplete: () => this.aTween({ targets: this.player, alpha: 0.3, duration: 300 }),
+    })
   }
 
   private animFlee() {

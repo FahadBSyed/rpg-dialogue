@@ -2218,7 +2218,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'fight', text: 'No deal, then. The hard way.', nextNodeId: 'goblin_cornered' },
+      { id: 'fight', text: 'No deal, then. The hard way.', nextNodeId: 'goblin_talk_collapse' },
     ],
   },
 
@@ -2644,7 +2644,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'fight', text: 'The story\'s over. The hard way starts now.', nextNodeId: 'goblin_cornered' },
+      { id: 'fight', text: 'The story\'s over. The hard way starts now.', nextNodeId: 'goblin_talk_collapse' },
     ],
   },
 
@@ -2718,6 +2718,11 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'answer_room',
         text: '(to all three) "Listen close, all of you. You\'ve made one mistake tonight. The only thing left to settle is how much it costs."',
         nextNodeId: 'goblin_talk_room',
+      },
+      {
+        id: 'truce',
+        text: '(to GRIT) "There\'s a third sum, and it\'s the cheap one. Nobody bleeds. You keep the fire, the buckle, all of it — I just walk through and the dark gets me instead of you. Passage for peace. That\'s an old deal down here. I\'m asking for it straight."',
+        nextNodeId: 'goblin_truce_open',
       },
     ],
   },
@@ -2958,7 +2963,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         text: 'The silence didn\'t land. Fill it — change the story before it finishes hardening.',
         nextNodeId: 'goblin_talk_desperate',
       },
-      { id: 'fight', text: 'Then we do it the hard way.', nextNodeId: 'goblin_cornered' },
+      { id: 'fight', text: 'Then we do it the hard way.', nextNodeId: 'goblin_talk_collapse' },
     ],
   },
 
@@ -3074,11 +3079,167 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'fight', text: 'The talking\'s done. Do it the hard way.', nextNodeId: 'goblin_cornered' },
+      { id: 'fight', text: 'The talking\'s done. Do it the hard way.', nextNodeId: 'goblin_talk_collapse' },
     ],
   },
 
-  // ── Bribe conversation ───────────────────────────────────────────────────────
+  // ── Truce / negotiated passage ───────────────────────────────────────────────
+  // The cooperative resolution the rest of the tree lacks. Every other social win
+  // is a contest won (intimidation, the con, greed, division). This is the one
+  // where nobody loses: Fiodor invokes passage-right, the old custom of the deep
+  // that buys safe crossing for safe crossing, and GRIT — old enough to know the
+  // form is real — honours it. Distinct skill (Dungeon Lore, the lore of the
+  // custom) so it doesn't retread the Deception/Reputation routes. On a fail the
+  // offer dies in the air and the room curdles into goblin_talk_collapse.
+  goblin_truce_open: {
+    id: 'goblin_truce_open',
+    narrative:
+      'You don\'t threaten it and you don\'t beg it. You set it down in the firelight like a stone on a table — flat, finished, a thing that was true before any of you were born. GRIT\'s eyes narrow, not in anger but in the particular way of an old creature being asked to remember something it half-hoped was gone.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Passage. It\'s asking passage. (a low sound, not quite a laugh) Nobody\'s asked me that in years. Things don\'t ask down here. Things take, and then we take back. You\'re asking like you think the old word still means something.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'The road-word. Grit, it said the road-word. Mother said the road-word was real. She said you let the road-walkers go or the dark remembers. We could just — let it go. Couldn\'t we?',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'It made that up. It heard us scared and it made up a rule on the spot, that\'s all clever things do — invent the law that lets them out. There\'s no road-word. There\'s a fire and a thing that walked up to it.',
+      },
+      // The read: passage-right is real, and the way to make it hold is to invoke
+      // the custom as a thing that already binds — not to argue for it. GRIT keeps
+      // the old forms because the old forms kept him alive.
+      {
+        kind: 'voice',
+        speaker: 'DUNGEON LORE',
+        text: 'NIM is wrong and the big one is right. The road-word is real — older than goblins, older than the warrens; safe crossing for safe crossing, and a thing that breaks it is marked by everything that lives in the dark. You don\'t sell GRIT on it. You name it, like a thing he already owes, and let him remember that he\'s lived this long by not being the one who broke it.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'The whip-hand hasn\'t come up. That\'s the only vote that counts and it hasn\'t been cast. Say the true thing plainly and stop. Don\'t crowd a creature that\'s deciding to do the thing you want.',
+      },
+    ],
+    choices: [
+      {
+        id: 'invoke',
+        text: 'Name the custom, flat, like a debt already owed. "Safe crossing for safe crossing. You know the word. You\'ve kept it before — it\'s part of why you\'re still keeping watch and not under someone else\'s fire."',
+        nextNodeId: 'goblin_truce_success',
+        check: { skillKey: 'dungeonLore', failNodeId: 'goblin_truce_fail' },
+      },
+    ],
+  },
+
+  goblin_truce_success: {
+    id: 'goblin_truce_success',
+    narrative:
+      'GRIT holds your eyes for a long, weighing moment — and then the whip-hand uncurls. Not a surrender. A bookkeeping. He has decided, the way he decides everything, that the cost of honouring the old word is lower than the cost of finding out what breaking it brings, and the deciding settles over the chamber and lets the air out of it. He steps back from the line of the passage. BOLE steps with him. After a moment, scowling, so does NIM.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'Crossing for crossing. You don\'t touch the fire, you don\'t touch the buckle, you don\'t come back this way wanting more. And the dark hears it the same as us — you break it, it isn\'t us you answer to. Go on. Road\'s yours.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'BOLE',
+        external: true,
+        text: 'Safe crossing, road-walker. (almost shy) ...tell the deep we kept it. If it asks. Tell it Bole kept the word.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DUNGEON LORE',
+        text: 'That\'s the whole of it — not won, not fooled. Settled. You spent no blood and told no lie and both those facts will still be true a mile from here. The old word holds because creatures like GRIT need it to hold for them too. Walk it like you mean to honour it. Part of the price is that you do.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Take the road. Keep the word — walk through, slow and open.', nextNodeId: 'goblin_exit' },
+    ],
+  },
+
+  goblin_truce_fail: {
+    id: 'goblin_truce_fail',
+    narrative:
+      'The word goes out and it doesn\'t catch. Maybe GRIT never kept the old forms; maybe he kept them once and got opened up for it and learned. Whatever it was, you watch the offer reach him and find nothing to hold to, and slide off, and fall. NIM is already grinning. The whip-hand comes up.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'The road-word. Heard it from a thing once, just before I learned what its road actually led to. There\'s no word down here that\'s worth more than knowing where everything is when the fire\'s low. And right now I don\'t know where you\'ll be in an hour. That\'s the only sum that\'s ever held.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'TOLD you. Made-up law, made-up word, made-up everything. The only true thing it\'s said all night is that it wants past us. So let\'s be the thing it doesn\'t get past.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DUNGEON LORE',
+        text: 'You named it true. It just wasn\'t enough — the word only binds the ones who still keep it, and this one stopped a long time ago. There\'s nothing left to invoke. The custom was the whole hand and he didn\'t honour the custom.',
+      },
+    ],
+    choices: [
+      { id: 'over', text: 'The old word\'s dead with him, then.', nextNodeId: 'goblin_talk_collapse' },
+    ],
+  },
+
+  // ── The negotiation collapsing ───────────────────────────────────────────────
+  // The messy middle between a failed talk and the encircled last stand. The
+  // social play has died but the blades haven't closed yet — there's one breath
+  // where the room hasn't become the fight, and Fiodor chooses: break for the
+  // passage while a gap still exists (Danger Sense), or plant and make it a
+  // fight on his terms. Reached from every failed social *close* (terrify, talk,
+  // bribe, ally, divide, species, truce) instead of dropping straight into the
+  // fully-closed goblin_cornered.
+  goblin_talk_collapse: {
+    id: 'goblin_talk_collapse',
+    narrative:
+      'The words are spent. You can feel the room change state around you — the listening goes out of it and the deciding comes in, blades lifting, the loose half-circle drawing tighter. But it isn\'t closed. Not yet. There is a breath here, exactly one, where the thing in the room is still becoming the fight and hasn\'t finished. After this breath there is no more choosing. There is the passage, or there is the floor.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'Don\'t let it think. Things like that, you let them think, they find another door. Close it. Close it now, while it\'s still just standing there.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'The gap by the rubble — the small one hasn\'t covered it yet, he\'s too busy talking. A hand\'s width and a half a heartbeat. It will not be there twice. If you\'re going, you\'re going now, before the word leaves his mouth.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'Or don\'t. Or set your feet right here and let them learn what reaching for you costs. Either one. But pick it this breath — the next breath belongs to them.',
+      },
+    ],
+    choices: [
+      {
+        id: 'break',
+        text: 'Take the gap. Break for the passage before it closes.',
+        nextNodeId: 'goblin_escaped',
+        check: { skillKey: 'dangerSense', failNodeId: 'goblin_run_cornered' },
+      },
+      {
+        id: 'plant',
+        text: 'No gap is wide enough with your back to them. Plant. Make it a fight on your terms.',
+        nextNodeId: 'goblin_cornered',
+      },
+    ],
+  },
+
+
   // Only reachable with the corpse-veil (the 'poison' unlock, consumed on the
   // confront choice — once it's on offer, it's committed). The catch: corpse-
   // veil is poison, so selling it as food is the trap. The two real frames are
@@ -3408,7 +3569,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
     choices: [
-      { id: 'fight', text: '"Have it your way." Set your feet.', nextNodeId: 'goblin_cornered' },
+      { id: 'fight', text: '"Have it your way." Set your feet.', nextNodeId: 'goblin_talk_collapse' },
     ],
   },
 
@@ -3741,7 +3902,7 @@ export const dialogueNodes: Record<string, DialogueNode> = {
         id: 'keep_walking',
         text: 'Hold his gaze. Keep walking.',
         nextNodeId: 'goblin_divide_success',
-        check: { skillKey: 'deception', failNodeId: 'goblin_cornered' },
+        check: { skillKey: 'deception', failNodeId: 'goblin_talk_collapse' },
       },
       {
         id: 'nod',
