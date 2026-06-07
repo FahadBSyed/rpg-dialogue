@@ -117,6 +117,13 @@ class DungeonScene extends Phaser.Scene {
   private actionTweens = new Set<Phaser.Tweens.Tween>()
   private actionTimers = new Set<Phaser.Time.TimerEvent>()
 
+  // ── Monster (east room) ──────────────────────────────────────────────────────
+  private monsterTriggered = false
+  private monsterDone = false
+  private monsterContainer!: Phaser.GameObjects.Container
+  private monsterEyes: Phaser.GameObjects.Arc[] = []
+  private monsterBreathTween?: Phaser.Tweens.Tween
+
   constructor() {
     super({ key: 'DungeonScene' })
   }
@@ -124,6 +131,7 @@ class DungeonScene extends Phaser.Scene {
   create() {
     this.drawWorld()
     this.createGoblins()
+    this.createMonster()
 
     // Player — blue circle
     this.player = this.add.circle(400, 900, 10, 0x5599ff).setDepth(5)
@@ -169,6 +177,7 @@ class DungeonScene extends Phaser.Scene {
 
     this.checkRoomTransition()
     this.checkGoblinTrigger()
+    this.checkMonsterTrigger()
   }
 
   // ── World drawing ───────────────────────────────────────────────────────────
@@ -300,6 +309,67 @@ class DungeonScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: -1,
+    })
+  }
+
+  // A furred, carapaced bulk curled over something the player can't make out —
+  // built from the same primitive-shape language as the goblins, just much larger.
+  private createMonster() {
+    const wx = 1300
+    const wy = 950
+
+    // The indistinct mound it's curled around — deliberately unresolved.
+    const mound = this.add.ellipse(-6, 10, 46, 24, 0x1a1a22).setAlpha(0.8)
+
+    const body = this.add.ellipse(0, 0, 120, 64, 0x4a3b2a)
+    const furTexture = this.add.ellipse(0, -6, 104, 46, 0x5b4a36).setAlpha(0.6)
+    const carapace = this.add.ellipse(28, -10, 56, 40, 0x2e2a22).setAlpha(0.85)
+
+    // Eight eyes, two ragged rows — slitted while it sleeps.
+    this.monsterEyes = []
+    const eyeRows = [-8, 4]
+    for (const row of eyeRows) {
+      for (let i = 0; i < 4; i++) {
+        const ex = -28 + i * 16 + (row > 0 ? 6 : 0)
+        const eye = this.add.ellipse(ex, row, 5, 1.5, 0xcfd6c0).setAlpha(0.9)
+        this.monsterEyes.push(eye as unknown as Phaser.GameObjects.Arc)
+      }
+    }
+
+    const label = this.add
+      .text(0, -44, '????', { fontSize: '9px', fontFamily: 'monospace', color: '#7a8a6a' })
+      .setOrigin(0.5, 1)
+      .setAlpha(0.5)
+
+    this.monsterContainer = this.add.container(wx, wy, [mound, body, furTexture, carapace, ...this.monsterEyes, label])
+    this.monsterContainer.setDepth(4)
+
+    // Slow, heavy breathing — the tell that it's deeply asleep.
+    this.monsterBreathTween = this.tweens.add({
+      targets: this.monsterContainer,
+      scaleX: 1.04,
+      scaleY: 0.97,
+      duration: 2600,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    })
+  }
+
+  // Snap the eyes from sleeping slits to wide-open circles — the visual beat
+  // for "it's awake," held through the chase.
+  private wakeMonster() {
+    this.monsterBreathTween?.stop()
+    for (const eye of this.monsterEyes) {
+      this.tweens.add({ targets: eye, scaleY: 4, duration: 220, ease: 'Quad.easeOut' })
+    }
+    this.tweens.add({
+      targets: this.monsterContainer,
+      scaleX: 1.08,
+      scaleY: 1.08,
+      duration: 160,
+      yoyo: true,
+      ease: 'Quad.easeOut',
     })
   }
 
@@ -450,6 +520,37 @@ class DungeonScene extends Phaser.Scene {
     )
   }
 
+  // ── Monster chase choreography ───────────────────────────────────────────────
+  // Each leg physically carries the player (and the monster, staggered close
+  // behind) across a room boundary, timed to land roughly with its dialogue
+  // beat. Driven through aTween/aLater so a click can fast-forward it.
+
+  private animChaseWake() {
+    this.wakeMonster()
+    this.aTween({ targets: this.monsterContainer, x: this.monsterContainer.x - 26, duration: 240, ease: 'Quad.easeOut', yoyo: true })
+    this.aTween({ targets: this.player, x: this.player.x - 16, duration: 200, ease: 'Quad.easeOut', yoyo: true })
+  }
+
+  private animChaseEast() {
+    // Break for the passage out of the east room — monster surging up close behind.
+    this.aTween({ targets: this.player, x: 800, y: 900, duration: 520, ease: 'Sine.easeIn' })
+    this.aTween({ targets: this.monsterContainer, x: 960, y: 920, duration: 560, ease: 'Sine.easeIn' })
+    this.aLater(440, () => this.enterRoom('center', 760, 900))
+  }
+
+  private animChaseCenter() {
+    // Cut across the open floor of the center room toward the north passage.
+    this.aTween({ targets: this.player, x: 400, y: 620, duration: 560, ease: 'Sine.easeIn' })
+    this.aTween({ targets: this.monsterContainer, x: 560, y: 720, duration: 600, ease: 'Sine.easeIn' })
+    this.aLater(480, () => this.enterRoom('north', 400, 560))
+  }
+
+  private animChaseArrival() {
+    // Burst into the firelit chamber — the goblins scatter from the doorway.
+    this.aTween({ targets: this.player, x: 380, y: 470, duration: 420, ease: 'Sine.easeOut' })
+    this.aTween({ targets: this.monsterContainer, x: 410, y: 380, duration: 480, ease: 'Sine.easeOut' })
+  }
+
   // ── Goblin proximity trigger ─────────────────────────────────────────────────
 
   private checkGoblinTrigger() {
@@ -466,9 +567,28 @@ class DungeonScene extends Phaser.Scene {
     }
   }
 
+  // ── Monster proximity trigger ────────────────────────────────────────────────
+
+  private checkMonsterTrigger() {
+    if (this.monsterTriggered || this.monsterDone || this.currentRoom !== 'east') return
+
+    const dx = this.player.x - this.monsterContainer.x
+    const dy = this.player.y - this.monsterContainer.y
+    if (Math.sqrt(dx * dx + dy * dy) <= 130) {
+      this.monsterTriggered = true
+      this.moveTarget = null
+      window.__rpgCallbacks?.startScenario('monster_start', 'monster')
+    }
+  }
+
   // ── Warp (called from React on a warpSignal) ─────────────────────────────────
 
   warpTo(target: string) {
+    // Any warp fired while the monster encounter is mid-flight concludes it
+    // (the chase only ever resolves via a warp).
+    if (this.monsterTriggered && !this.monsterDone && target !== 'monster_stay') {
+      this.monsterDone = true
+    }
     this.moveTarget = null
     this.player.setAlpha(1).setScale(1).setAngle(0) // undo any in-scene fade/shrink
     // Cancel any in-flight focus-cam pan, or it would override centerOn below
@@ -476,12 +596,31 @@ class DungeonScene extends Phaser.Scene {
     this.cameras.main.panEffect.reset()
 
     if (target === 'center') {
-      // Withdrawal — encounter is unresolved. Reset the trigger so the player
-      // can walk back in and resume later (the store remembers where they left off).
+      // Withdrawal, or the chase circling back — encounter is unresolved/over.
+      // Reset the goblin trigger so a fresh approach is still possible.
       this.goblinTriggered = false
       this.currentRoom = 'center'
       this.player.setPosition(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
       this.cameras.main.centerOn(ROOM_CAMERA.center.x, ROOM_CAMERA.center.y)
+      return
+    }
+
+    if (target === 'monster_stay') {
+      // Backed away without disturbing it — stays asleep, room revisitable.
+      this.monsterTriggered = false
+      return
+    }
+
+    if (target === 'north') {
+      // The chase dumps the player straight into the goblin chamber — the
+      // goblin proximity trigger is suppressed since the arrival itself (with
+      // the monster on the player's heels) already played out in the chase.
+      this.monsterTriggered = true
+      this.monsterDone = true
+      this.goblinTriggered = true
+      this.currentRoom = 'north'
+      this.player.setPosition(400, 520)
+      this.cameras.main.centerOn(ROOM_CAMERA.north.x, ROOM_CAMERA.north.y)
       return
     }
 
@@ -624,6 +763,14 @@ class DungeonScene extends Phaser.Scene {
   }
 
   playNodeAnim(id: string) {
+    if (id.startsWith('monster_')) {
+      if (id === 'monster_start' || id === 'monster_observe' || id === 'monster_retreat') return this.animObserve()
+      if (id === 'monster_attack_open') return this.animChaseWake()
+      if (id === 'monster_chase_east') return this.animChaseEast()
+      if (id === 'monster_chase_center') return this.animChaseCenter()
+      if (id === 'monster_chase_arrival') return this.animChaseArrival()
+      return
+    }
     if (!id.startsWith('goblin_')) return
     // Terminal/meta nodes are handled by the warp + refusal, not animated here.
     if (id === 'goblin_exit' || id === 'goblin_cleared' || id === 'goblin_fled' || id === 'goblin_refuse') return

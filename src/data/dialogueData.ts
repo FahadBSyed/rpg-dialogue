@@ -4363,4 +4363,314 @@ export const dialogueNodes: Record<string, DialogueNode> = {
       },
     ],
   },
+
+  // ── The east room: a sleeping thing ──────────────────────────────────────────
+  // A furred, carapaced bulk — something between a crocodile and a spider, eight
+  // eyes shut to slits — curled protectively over a shape the gloom won't give
+  // up. Attacking it is framed as transparently foolish, and the game takes that
+  // framing seriously: the strike fails by design and tips straight into a chase
+  // that is not contained to this room. (Lure-with-the-mushroom is deferred to a
+  // follow-up once cross-room item gating is designed.)
+
+  monster_start: {
+    id: 'monster_start',
+    narrative:
+      'The east passage opens onto cold stone and colder air, and at first you think the far wall is simply uneven — a swell of rock the dark has rounded off. Then it breathes. Slow, enormous, a bellows-drag of air through something that is not quite a snout and not quite a maw. Fur, where you expected scale. Scale, where you expected fur. It is curled in on itself like a dog before a hearth that isn\'t there, and underneath the long dark hook of its body is a shape your eyes refuse to resolve into anything you have a word for.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Asleep. Properly asleep — the kind of sleep that comes from not having anything left to be afraid of. That is worth knowing all by itself: nothing down here has tried this thing in a very long time.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'You\'ve seen big things before. You haven\'t seen this — the wrongness isn\'t the size, it\'s that two different kinds of animal are arguing over what it should look like, and neither one lost.',
+      },
+    ],
+    choices: [
+      {
+        id: 'study',
+        text: 'Get closer. Study it before you decide anything.',
+        nextNodeId: 'monster_observe',
+      },
+      {
+        id: 'leave',
+        text: 'Back away. Whatever it\'s keeping isn\'t worth waking this up for.',
+        nextNodeId: 'monster_retreat',
+      },
+    ],
+  },
+
+  monster_observe: {
+    id: 'monster_observe',
+    narrative:
+      'You ease close enough to let the dark finish its work on your eyes. The breathing has a rhythm to it — long pull, longer pause, a shudder through the fur on the exhale. Whatever is under it stays exactly that: under it. A hook of shadow, a wrongness of outline, nothing your mind will commit to. The longer you look at the thing itself, the less it resolves, as though it is daring you to be certain about any part of it.',
+    beats: [
+      {
+        kind: 'passive',
+        skillKey: 'dangerSense',
+        successInterjection: {
+          speaker: 'DANGER SENSE',
+          text: 'Count the breaths. Long, slow, even — three full counts between each one. That is the bottom of sleep, the kind a body only reaches when it has stopped expecting to need to wake up fast. You could cross the whole room before the next one finishes.',
+        },
+      },
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'Nothing. You have a name for everything that crawls, hunts, or guards down here, and you do not have one for this. That is its own kind of information: either it is very old, very far from home, or it is the only one of itself that has ever existed. None of those are comforting.',
+        },
+      },
+      {
+        kind: 'passive',
+        skillKey: 'scavenging',
+        failInterjection: {
+          speaker: 'SCAVENGING',
+          text: 'You cannot make the shape underneath it agree to be any one thing. An angle that might be metal. A curve that might be bone. A glint that might be nothing — your eyes inventing treasure out of pure dark because that is what eyes do when you need them to. You will not learn what it is from here.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'attack',
+        text: 'It\'s asleep. That might be the only chance you get — go for it now.',
+        nextNodeId: 'monster_attack_open',
+      },
+      {
+        id: 'leave',
+        text: 'Back away. You\'ve seen enough to know better.',
+        nextNodeId: 'monster_retreat',
+      },
+    ],
+  },
+
+  monster_retreat: {
+    id: 'monster_retreat',
+    narrative:
+      'You let it sleep. Whatever conversation it\'s having with whatever is under it, it isn\'t one that needs you in it. You retreat the way you came, slow, flat-footed, watching the rise and fall of that enormous ribcage for any change in its rhythm. There is none. By the time you\'re back at the passage mouth your heart is the loudest thing in the room, and the room hasn\'t noticed you were ever in it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'Good. Whatever that was going to cost, it would have cost more than it was worth. You can come back to this question. Not every door has to open the day you find it.',
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Leave it sleeping. There are better fights to pick.', nextNodeId: 'monster_leave' },
+    ],
+  },
+
+  // Terminal sentinel — chooseOption intercepts this nextNodeId via MONSTER_EXIT
+  // and warps without ever displaying the node itself (mirrors goblin_exit/goblin_fled).
+  monster_leave: {
+    id: 'monster_leave',
+    narrative: 'The chamber settles back into its slow, enormous breathing. You were never here.',
+    beats: [],
+    choices: [],
+  },
+
+  monster_attack_open: {
+    id: 'monster_attack_open',
+    narrative:
+      'You know, even as your weight shifts onto your front foot, that this is a poor decision wearing the costume of a good one. Asleep is not the same as helpless, and big is not the same as slow. You go anyway — because the only chance you will ever get at a thing this size is the one where it doesn\'t see you coming, and that chance is now or it is never.\n\nYour strike lands wrong. Not badly — *wrong*, glancing off fur that turns out to be hiding something far harder underneath, and the impact runs back up your arm like a struck bell. The breathing stops.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'That is the worst sound in the world. Not a roar. A thing that was asleep, and now is not, and has not yet decided what it thinks about that.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'MOVE. Whatever you were about to do next, the answer is run, and the direction is away, and the time is now.',
+      },
+    ],
+    choices: [
+      {
+        id: 'run',
+        text: 'Run.',
+        nextNodeId: 'monster_chase_east',
+      },
+    ],
+  },
+
+  monster_chase_east: {
+    id: 'monster_chase_east',
+    narrative:
+      'It comes off the floor in one motion, no stagger, no wasted second — asleep to fully arrived in less time than it takes to be afraid of it properly. Eight eyes, wide open now, find you in the dark without seeming to search. The passage to the center room is the only door this floor has ever offered you, and it has never looked further away.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        anim: 'flee',
+        text: 'Don\'t look at it. Looking costs a stride and you do not have one to spend. The passage. Only the passage.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'It\'s not as fast over open ground as it is off the mark — that first burst was the worst of it. Hold the gap and it holds. Lose your footing and it doesn\'t.',
+        bonuses: [{ type: 'size_step_up', skillKey: 'endurance', sourceDescription: 'Read its gait — the burst was the worst of it' }],
+      },
+    ],
+    choices: [
+      {
+        id: 'rubble',
+        text: 'Vault the rubble pile — straight line, ugly footing, no time to think about it.',
+        nextNodeId: 'monster_chase_center',
+        check: { skillKey: 'endurance', failNodeId: 'monster_chase_stumble' },
+      },
+      {
+        id: 'wall',
+        text: 'Hug the wall and ride the curve of the passage out — longer way, surer footing.',
+        nextNodeId: 'monster_chase_center',
+      },
+    ],
+  },
+
+  // A stumble costs distance and nerve, not the run itself — the chase keeps
+  // moving forward either way; this just makes the next legs feel earned.
+  monster_chase_stumble: {
+    id: 'monster_chase_stumble',
+    narrative:
+      'Your foot finds the one stone in the pile that wasn\'t settled, and for one entire heartbeat you are looking at the ceiling instead of the passage. You get a hand down. You get up. You do not get the half-second back, and behind you something that was four strides away is now close enough that you can feel the displaced air of it.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'On your feet. The fall already happened — there\'s no version of the next ten seconds where it didn\'t. Spend the part that\'s still yours.',
+        penalties: [{ type: 'add_stress_die', skillKey: 'endurance', sourceDescription: 'Lost your footing — it closed the gap' }],
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Up. Go.', nextNodeId: 'monster_chase_center' },
+    ],
+  },
+
+  monster_chase_center: {
+    id: 'monster_chase_center',
+    narrative:
+      'You break into the open floor of the center chamber at a dead sprint, and the thing comes through the passage mouth behind you like the room was built too small for it — which, you realize with no comfort at all, it was. Open ground. No more walls to bend the chase around. Just you, the far passage, and everything in between.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'There — the old support beam, half-fallen, leaning across the floor like it\'s been waiting its whole rotten life for this exact moment. Go under it. It won\'t.',
+      },
+      {
+        kind: 'voice',
+        speaker: 'ENDURANCE',
+        anim: 'flee',
+        text: 'Or don\'t spend the breath on cleverness at all. Straight line is still the fastest way through a room you already know.',
+      },
+    ],
+    choices: [
+      {
+        id: 'beam',
+        text: 'Cut under the fallen beam — too low for it, just barely enough for you.',
+        nextNodeId: 'monster_chase_arrival',
+        check: { skillKey: 'dangerSense', failNodeId: 'monster_chase_clip' },
+      },
+      {
+        id: 'straight',
+        text: 'Don\'t get clever. Run the straight line you already know by heart.',
+        nextNodeId: 'monster_chase_arrival',
+      },
+    ],
+  },
+
+  monster_chase_clip: {
+    id: 'monster_chase_clip',
+    narrative:
+      'You misjudge the gap by a hand\'s width — not the beam, the *thing*, which doesn\'t go under it so much as simply continue, and the leading edge of it clips the wood hard enough to send splinters past your ear like grapeshot. You\'re through. Bleeding a little, deafened on one side, and absolutely certain that whatever you just heard hit the floor behind you was not the beam giving up first.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'SCARRING',
+        text: 'Filed under things that nearly killed you and didn\'t. There will be time to feel that properly later — assuming "later" is still a thing you get.',
+        penalties: [{ type: 'size_step_down', skillKey: 'dangerSense', sourceDescription: 'Splinters and a ringing ear — it nearly had you' }],
+      },
+    ],
+    choices: [
+      { id: 'continue', text: 'Don\'t stop. The north passage is right there.', nextNodeId: 'monster_chase_arrival' },
+    ],
+  },
+
+  monster_chase_arrival: {
+    id: 'monster_chase_arrival',
+    narrative:
+      'You take the north passage at a dead run because it is the only direction left that isn\'t *behind you* — and you are three strides into the goblins\' chamber, firelight and startled faces and a half-eaten dinner all wheeling past, before you understand what you have just done. GRIT is already on his feet. NIM\'s mouth is open around the start of a word that will never finish, because that is the moment the thing that has been chasing you arrives in the doorway behind you, and the only sound louder than your own heartbeat is the silence of three goblins realizing, all at once, that you were not the worst thing in the dark tonight.',
+    beats: [
+      {
+        kind: 'voice',
+        speaker: 'GRIT',
+        external: true,
+        text: 'What — what IS — get behind me, get BEHIND—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'NIM',
+        external: true,
+        text: 'That\'s not — that\'s not OURS, Grit, we don\'t — it followed it, it FOLLOWED it here—',
+      },
+      {
+        kind: 'voice',
+        speaker: 'DANGER SENSE',
+        text: 'You have one breath of chaos to spend before this becomes three different problems trying to occupy the same doorway. Spend it on a direction, not a decision — there isn\'t time left for those to be different things.',
+      },
+    ],
+    choices: [
+      {
+        id: 'north',
+        text: 'Cut left, past the fire — there\'s a passage on the far side and the goblins are between you and it for once, not you and them.',
+        nextNodeId: 'monster_break_north',
+        check: { skillKey: 'dangerSense', failNodeId: 'monster_break_north' },
+      },
+      {
+        id: 'circle',
+        text: 'Don\'t go deeper into a room you don\'t know the shape of — turn hard and ride your own trail back out the way the whole mess came in.',
+        nextNodeId: 'monster_break_circle',
+        check: { skillKey: 'endurance', failNodeId: 'monster_break_circle' },
+      },
+    ],
+  },
+
+  // Both branches resolve the encounter regardless of the check — the roll
+  // colours *how* it goes, not *whether* you get out. (Fast-forward, don't hard-block.)
+  monster_break_north: {
+    id: 'monster_break_north',
+    narrative:
+      'You go left, past the fire, into the gap where three goblins used to be standing and now very much are not. Whatever happens next in this room is going to happen without you in it — you\'re already through the far passage and into the dark beyond, the chamber\'s noise collapsing behind you into one enormous, chaotic, multi-throated sound that you do not stop to interpret. You don\'t know what you just walked away from. You know it isn\'t following you anymore. For now, that is the only fact that matters.',
+    beats: [],
+    choices: [
+      { id: 'continue', text: 'Keep moving. Whatever just happened back there isn\'t yours to carry.', nextNodeId: 'monster_chase_north' },
+    ],
+  },
+
+  // Terminal sentinel for MONSTER_EXIT — see monster_leave for the pattern.
+  monster_chase_north: {
+    id: 'monster_chase_north',
+    narrative: 'The dark of the deeper passage closes around you. Behind you, the chamber is still screaming.',
+    beats: [],
+    choices: [],
+  },
+
+  monster_break_circle: {
+    id: 'monster_break_circle',
+    narrative:
+      'You don\'t trust a passage you\'ve never run. You trust the one you have. You turn hard, throw yourself back through the doorway you just came screaming out of, and ride your own trail in reverse — back across the open floor of the center room, lungs burning, the chamber\'s noise behind you curdling into something that might be the goblins fighting for their lives and might be something far worse losing interest in them entirely. You don\'t look back to find out which.',
+    beats: [],
+    choices: [
+      { id: 'continue', text: 'Keep running. Put a room between yourself and all of it.', nextNodeId: 'monster_chase_circle' },
+    ],
+  },
+
+  // Terminal sentinel for MONSTER_EXIT — see monster_leave for the pattern.
+  monster_chase_circle: {
+    id: 'monster_chase_circle',
+    narrative: 'You burst back out into the center room, alone, and keep running anyway.',
+    beats: [],
+    choices: [],
+  },
 }

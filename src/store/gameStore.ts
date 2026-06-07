@@ -103,6 +103,7 @@ interface GameState {
   // cleared/consumed) — survives a withdrawal and a later return to the room.
   hasMushroom: boolean
   goblinWithdrawn: boolean
+  monsterState: 'sleeping' | 'chasing' | 'awake' | 'avoided'
   warpSignal: WarpSignal | null
   skills: Skills
   characterCreated: boolean
@@ -189,6 +190,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
   completedScenarios: [],
   hasMushroom: false,
   goblinWithdrawn: false,
+  monsterState: 'sleeping',
   warpSignal: null,
 
   skills: {
@@ -358,7 +360,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
       currentNodeId: resumeNodeId,
       beatCursor: 0,
       revealedBeats: [],
-      pendingBonuses: resuming && state.hasMushroom
+      pendingBonuses: state.hasMushroom
         ? [{ id: newBonusId(), type: 'unlock_choice', unlockKey: 'poison', sourceDescription: 'Corpse-veil, still in your coat' }]
         : [],
       pendingPenalties: [],
@@ -574,6 +576,36 @@ export const useGameStore = create<GameState>()((set, get) => ({
         pendingBonuses: bonusesAfterUnlock,
         pendingPenalties: state.pendingPenalties,
         passiveCache: state.passiveCache,
+        dialogueLog: [],
+      })
+      return
+    }
+
+    // Monster scenario terminals: 'avoided' stays in the east room and resets
+    // the trigger (revisitable, like a goblin withdrawal); the chase-end nodes
+    // mark the encounter resolved and physically land the player elsewhere.
+    const MONSTER_EXIT: Record<string, { warp: string; state: GameState['monsterState'] }> = {
+      monster_leave: { warp: 'monster_stay', state: 'avoided' },
+      monster_chase_north: { warp: 'north', state: 'awake' },
+      monster_chase_circle: { warp: 'center', state: 'awake' },
+    }
+    if (!choice.check && MONSTER_EXIT[choice.nextNodeId]) {
+      const exit = MONSTER_EXIT[choice.nextNodeId]
+      const scenario = state.activeScenario ?? 'monster'
+      set({
+        gameMode: 'exploration',
+        activeScenario: null,
+        monsterState: exit.state,
+        completedScenarios: exit.state === 'avoided' || state.completedScenarios.includes(scenario)
+          ? state.completedScenarios
+          : [...state.completedScenarios, scenario],
+        warpSignal: { target: exit.warp, id: (state.warpSignal?.id ?? 0) + 1 },
+        currentNodeId: choice.nextNodeId,
+        beatCursor: 0,
+        revealedBeats: [],
+        pendingBonuses: [],
+        pendingPenalties: [],
+        passiveCache: {},
         dialogueLog: [],
       })
       return
