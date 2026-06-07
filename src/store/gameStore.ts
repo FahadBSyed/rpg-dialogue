@@ -600,6 +600,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
         effectivePool = 1
       }
     }
+    const ignoringStress = bonus?.type === 'ignore_stress'
 
     // Apply and consume applicable penalties
     let remainingPenalties = state.pendingPenalties
@@ -636,15 +637,15 @@ export const useGameStore = create<GameState>()((set, get) => ({
     )
     if (stressDieIdx >= 0) {
       const p = remainingPenalties[stressDieIdx]
-      penaltyDescs.push(`+1 stress die (${p.sourceDescription})`)
-      effectivePool += 1
+      penaltyDescs.push(`+1 stress die (${p.sourceDescription})${ignoringStress ? ' — ignored' : ''}`)
+      if (!ignoringStress) effectivePool += 1
       remainingPenalties = remainingPenalties.filter((_, i) => i !== stressDieIdx)
     }
 
     // Fold any converted size penalties into the pool — both for this check and
     // permanently on the skill (committed below alongside any stress-pass gain).
     const permanentPool = skill.pool + permanentStressDice
-    effectivePool += permanentStressDice
+    if (!ignoringStress) effectivePool += permanentStressDice
 
     if (penaltyDescs.length) {
       appliedPenalty = {
