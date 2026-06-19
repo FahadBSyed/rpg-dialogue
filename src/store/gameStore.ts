@@ -118,6 +118,8 @@ interface GameState {
   hasMushroom: boolean
   goblinWithdrawn: boolean
   monsterState: 'sleeping' | 'chasing' | 'awake' | 'avoided'
+  monsterCacheSeen: boolean
+  hasTotem: boolean
   warpSignal: WarpSignal | null
   skills: Skills
   characterCreated: boolean
@@ -208,6 +210,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
   hasMushroom: false,
   goblinWithdrawn: false,
   monsterState: 'sleeping',
+  monsterCacheSeen: false,
+  hasTotem: false,
   warpSignal: null,
 
   skills: {
@@ -378,6 +382,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
       get().startScenario('goblin_start', 'goblin')
     } else if (room === 'east' && state.monsterState === 'sleeping') {
       get().startScenario('monster_start', 'monster')
+    } else if (room === 'east' && state.monsterState === 'awake' && !state.monsterCacheSeen) {
+      get().startScenario('monster_cache_found', 'monster_cache')
     }
   },
 
@@ -614,6 +620,32 @@ export const useGameStore = create<GameState>()((set, get) => ({
         pendingBonuses: bonusesAfterUnlock,
         pendingPenalties: state.pendingPenalties,
         passiveCache: state.passiveCache,
+        dialogueLog: [],
+      })
+      return
+    }
+
+    // The east-room cache, found once the monster's gone — a one-time pickup,
+    // no room/warp change since the player never left the east room for it.
+    const CACHE_EXIT: Record<string, boolean> = {
+      monster_cache_take: true,
+      monster_cache_skip: false,
+    }
+    if (!choice.check && choice.nextNodeId in CACHE_EXIT) {
+      set({
+        gameMode: 'exploration',
+        activeScenario: null,
+        monsterCacheSeen: true,
+        hasTotem: CACHE_EXIT[choice.nextNodeId],
+        completedScenarios: state.completedScenarios.includes('monster_cache')
+          ? state.completedScenarios
+          : [...state.completedScenarios, 'monster_cache'],
+        currentNodeId: choice.nextNodeId,
+        beatCursor: 0,
+        revealedBeats: [],
+        pendingBonuses: [],
+        pendingPenalties: [],
+        passiveCache: {},
         dialogueLog: [],
       })
       return

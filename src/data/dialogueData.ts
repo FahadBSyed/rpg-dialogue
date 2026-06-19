@@ -4673,4 +4673,52 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     beats: [],
     choices: [],
   },
+
+  // ── East room, revisited (monster chased off into the goblins) ─────────────
+  // Only reachable once monsterState is 'awake' — the room is finally safe to
+  // search, and what was under the thing turns out to matter to the den next door.
+  monster_cache_found: {
+    id: 'monster_cache_found',
+    narrative:
+      'With the thing gone, the mound it was curled around is just a mound — and once you\'re close enough to put a hand on it, it isn\'t indistinct anymore. Bone, mostly. Old bone, picked clean a long time before tonight. Half-buried in it, a fist-sized chunk of something that doesn\'t belong to any animal: bone and verdigrised copper bound together, broken clean across the middle, etched with marks you have seen before — on a vest, on a shield, on the side of a cookpot, not twenty feet from a fire that is, as it happens, still burning right next door.',
+    beats: [
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'A clan totem, or half of one — broken pieces like this get carried as a debt owed, or a grudge unpaid, depending on who you ask. Whoever was holding this didn\'t set it down on purpose. Something took it from them, and then it took them.',
+        },
+      },
+    ],
+    choices: [
+      {
+        id: 'take',
+        text: 'Take the totem. Whatever it\'s worth, it\'s worth more in your hand than in this mound.',
+        nextNodeId: 'monster_cache_take',
+      },
+      {
+        id: 'skip',
+        text: 'Leave it. Some debts aren\'t yours to pick up.',
+        nextNodeId: 'monster_cache_skip',
+      },
+    ],
+  },
+
+  // Terminal sentinel for CACHE_EXIT — chooseOption intercepts this nextNodeId
+  // and resolves without ever displaying the node itself (mirrors monster_leave).
+  monster_cache_take: {
+    id: 'monster_cache_take',
+    narrative: 'You pocket the broken totem. It\'s heavier than it looks, in every sense.',
+    beats: [],
+    choices: [],
+  },
+
+  // Terminal sentinel for CACHE_EXIT.
+  monster_cache_skip: {
+    id: 'monster_cache_skip',
+    narrative: 'You leave it where it lay. The bones keep their secret a little longer.',
+    beats: [],
+    choices: [],
+  },
 }
