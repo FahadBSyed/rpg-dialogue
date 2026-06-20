@@ -4705,6 +4705,42 @@ export const dialogueNodes: Record<string, DialogueNode> = {
     ],
   },
 
+  // Variant of monster_cache_found for when the chase ended with the monster
+  // tearing through the den itself (goblinOutcome === 'monster_killed') —
+  // chosen by navigateTo, not reachable any other way.
+  monster_cache_found_killed: {
+    id: 'monster_cache_found_killed',
+    narrative:
+      'With the thing gone, the mound it was curled around is just a mound — and once you\'re close enough to put a hand on it, it isn\'t indistinct anymore. Bone, mostly. Old bone, picked clean a long time before tonight. Half-buried in it, a fist-sized chunk of something that doesn\'t belong to any animal: bone and verdigrised copper bound together, broken clean across the middle, etched with marks you have seen before — on a vest, on a shield, on the side of a cookpot. The fire it belongs next to isn\'t burning anymore. Neither is anyone who used to sit around it.',
+    beats: [
+      {
+        kind: 'passive',
+        skillKey: 'dungeonLore',
+        successInterjection: {
+          speaker: 'DUNGEON LORE',
+          text: 'A clan totem, or half of one — broken pieces like this get carried as a debt owed, or a grudge unpaid, depending on who you ask. Whoever was holding this didn\'t set it down on purpose. Something took it from them, and then it took them.',
+        },
+      },
+      {
+        kind: 'voice',
+        speaker: 'SPITE',
+        text: 'You waited it out for two minutes and the worst thing in this room did the rest for you. Free of charge. It doesn\'t even know what it did. That\'s not a victory. That\'s just funny, and the joke\'s on the thing you\'re holding — it was supposed to mean something to someone who can\'t hear about it now.',
+      },
+    ],
+    choices: [
+      {
+        id: 'take',
+        text: 'Take the totem. Whatever it\'s worth, it\'s worth more in your hand than in this mound.',
+        nextNodeId: 'monster_cache_take',
+      },
+      {
+        id: 'skip',
+        text: 'Leave it. Some debts aren\'t yours to pick up.',
+        nextNodeId: 'monster_cache_skip',
+      },
+    ],
+  },
+
   // Terminal sentinel for CACHE_EXIT — chooseOption intercepts this nextNodeId
   // and resolves without ever displaying the node itself (mirrors monster_leave).
   monster_cache_take: {

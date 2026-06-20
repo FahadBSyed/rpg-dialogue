@@ -339,7 +339,7 @@ class DungeonScene extends Phaser.Scene {
     // and drag the camera back to the chamber after we warp away.
     this.cameras.main.panEffect.reset()
 
-    if (target === 'cleared') this.clearGoblins()
+    if (target === 'cleared' || target === 'monster_cleared') this.clearGoblins()
     if (target === 'emptied') this.removeGoblins()
   }
 

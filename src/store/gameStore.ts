@@ -111,7 +111,9 @@ interface GameState {
   currentRoom: Room
   // Set once the goblin chamber is resolved: 'escaped' (goblins alive, room is
   // one-way — refused on re-entry), 'cleared'/'fled' (room freely traversable).
-  goblinOutcome: 'escaped' | 'cleared' | 'fled' | null
+  // 'monster_killed' — the chase ends with the monster tearing through the den
+  // itself; the chamber is cleared, but not by the player.
+  goblinOutcome: 'escaped' | 'cleared' | 'fled' | 'monster_killed' | null
   completedScenarios: string[]
   // Persists across scenario resets (unlike pendingBonuses, which can be
   // cleared/consumed) — survives a withdrawal and a later return to the room.
@@ -373,7 +375,7 @@ export const useGameStore = create<GameState>()((set, get) => ({
 
     if (room === 'deep') {
       if (state.goblinOutcome === 'escaped') { get().openRefusal(); return }
-      if (state.goblinOutcome !== 'cleared' && state.goblinOutcome !== 'fled') return
+      if (state.goblinOutcome !== 'cleared' && state.goblinOutcome !== 'fled' && state.goblinOutcome !== 'monster_killed') return
     }
 
     set({ currentRoom: room })
@@ -383,7 +385,8 @@ export const useGameStore = create<GameState>()((set, get) => ({
     } else if (room === 'east' && state.monsterState === 'sleeping') {
       get().startScenario('monster_start', 'monster')
     } else if (room === 'east' && state.monsterState === 'awake' && !state.monsterCacheSeen) {
-      get().startScenario('monster_cache_found', 'monster_cache')
+      const cacheNode = state.goblinOutcome === 'monster_killed' ? 'monster_cache_found_killed' : 'monster_cache_found'
+      get().startScenario(cacheNode, 'monster_cache')
     }
   },
 
@@ -654,22 +657,28 @@ export const useGameStore = create<GameState>()((set, get) => ({
     // Monster scenario terminals: 'avoided' stays in the east room and resets
     // the trigger (revisitable, like a goblin withdrawal); the chase-end nodes
     // mark the encounter resolved and physically land the player elsewhere.
-    const MONSTER_EXIT: Record<string, { warp: string; state: GameState['monsterState'] }> = {
-      monster_leave: { warp: 'monster_stay', state: 'avoided' },
-      monster_chase_north: { warp: 'north', state: 'awake' },
-      monster_chase_circle: { warp: 'center', state: 'awake' },
+    // The north-break ends with the den itself torn through (text confirms the
+    // goblins are gone, definitively) — the circle-back is deliberately left
+    // ambiguous in the prose, so it carries no goblinOutcome change at all.
+    const MONSTER_EXIT: Record<string, {
+      warp: string
+      room: GameState['currentRoom']
+      state: GameState['monsterState']
+      goblinOutcome?: GameState['goblinOutcome']
+    }> = {
+      monster_leave: { warp: 'monster_stay', room: 'east', state: 'avoided' },
+      monster_chase_north: { warp: 'monster_cleared', room: 'deep', state: 'awake', goblinOutcome: 'monster_killed' },
+      monster_chase_circle: { warp: 'center', room: 'center', state: 'awake' },
     }
     if (!choice.check && MONSTER_EXIT[choice.nextNodeId]) {
       const exit = MONSTER_EXIT[choice.nextNodeId]
       const scenario = state.activeScenario ?? 'monster'
-      const ROOM_FOR_WARP: Record<string, GameState['currentRoom']> = {
-        monster_stay: 'east', north: 'north', center: 'center',
-      }
       set({
         gameMode: 'exploration',
         activeScenario: null,
-        currentRoom: ROOM_FOR_WARP[exit.warp] ?? state.currentRoom,
+        currentRoom: exit.room,
         monsterState: exit.state,
+        goblinOutcome: exit.goblinOutcome ?? state.goblinOutcome,
         completedScenarios: exit.state === 'avoided' || state.completedScenarios.includes(scenario)
           ? state.completedScenarios
           : [...state.completedScenarios, scenario],
